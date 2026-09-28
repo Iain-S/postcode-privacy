@@ -1,0 +1,28 @@
+# scratch task list — see docs/superpowers/specs/ for the design of record
+todo.md
+
+# build artefacts
+/dist/
+/build/
+*.egg-info/
+__pycache__/
+*.py[cod]
+
+# environments
+.venv/
+.python-version
+
+# tooling caches
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.ty_cache/
+.coverage
+htmlcov/
+
+# postcode graph artefacts and source data — NEVER commit these.
+# ONSPD Northern Ireland (BT*) postcodes are not redistributable.
+*.ppg
+/data/
+ONSPD*.csv
+ONSPD*.zip

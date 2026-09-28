@@ -1,0 +1,91 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "postcode-privacy"
+version = "0.1.0.dev0"
+description = "Differential privacy for UK postcodes, measured in graph hops rather than metres"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Iain Stenson", email = "istenson@turing.ac.uk" }]
+keywords = ["differential-privacy", "postcodes", "geoprivacy", "uk", "anonymisation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Typing :: Typed",
+]
+dependencies = ["numpy>=1.26", "scipy>=1.11"]
+
+[project.optional-dependencies]
+frames = ["pandas>=2.0", "pyarrow>=14"]
+
+[project.scripts]
+postcode-privacy = "postcode_privacy.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "hypothesis>=6.100",
+    "ruff>=0.14",
+    "ty>=0.0.1a1",
+    "pytest-benchmark>=4.0",
+    "pre-commit>=3.7",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/postcode_privacy"]
+
+# The library must never ship postcode data: ONSPD Northern Ireland postcodes
+# are not redistributable. CI asserts the built wheel contains no such files.
+[tool.hatch.build.targets.wheel.force-include]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "slow: takes more than a second (deselect with -m 'not slow')",
+    "statistical: seeded statistical test; must never be flaky",
+]
+filterwarnings = ["error"]
+
+[tool.ruff]
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",      # pycodestyle
+    "F",           # pyflakes
+    "I",           # isort
+    "N",           # pep8-naming
+    "UP",          # pyupgrade
+    "B",           # bugbear
+    "A",           # builtins shadowing
+    "C4",          # comprehensions
+    "PT",          # pytest style
+    "SIM",         # simplify
+    "RET",         # returns
+    "ARG",         # unused arguments
+    "PTH",         # use pathlib
+    "NPY",         # numpy legacy random etc.
+    "RUF",
+    "S",           # bandit: this is a privacy library, take security lints seriously
+]
+ignore = [
+    "E741",        # ambiguous names: we legitimately use single letters for maths
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]  # assert is the point
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ty.environment]
+python-version = "3.11"
+
+[tool.ty.src]
+include = ["src", "tests"]
