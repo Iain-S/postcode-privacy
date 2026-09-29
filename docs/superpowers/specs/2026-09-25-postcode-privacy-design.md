@@ -165,9 +165,18 @@ than k-nearest-neighbours, which produces asymmetric edges and hops across estua
 
 Pruning must be **adaptive, not a fixed length threshold** — a 5 km cutoff is absurd in
 central Manchester and over-aggressive in Caithness. Drop edge `(u,v)` when its length
-exceeds `α ·` the larger of the two endpoints' median incident edge lengths, `α` default
-3. This removes the spurious long convex-hull edges around the coastline and most
+exceeds `α ·` the larger of the two endpoints' **local scale**, `α` default 3. This
+removes the spurious long convex-hull edges around the coastline and most
 water-crossings, while leaving rural graphs connected.
+
+Local scale is the median distance to a node's six nearest *points*, not the median
+length of its incident *edges*. The edge-based definition — the original design, and the
+obvious one — fails exactly where it matters. At a node facing an estuary the edges
+crossing the water outnumber the local ones, so they set the median themselves, and the
+statistic meant to detect long edges is defined by them. The long edges hide each other.
+Nearest-neighbour distances measure point density directly and cannot be poisoned that
+way. This was caught by the two-cluster test before any real data was involved: the
+edge-based rule pruned only 4 of 9 gap-spanning edges.
 
 Then bridge: find connected components, connect each to its nearest neighbouring
 component by the shortest inter-component centroid pair, marked as a bridge edge. This
