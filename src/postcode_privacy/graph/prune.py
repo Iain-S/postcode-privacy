@@ -6,6 +6,8 @@ import numpy as np
 import numpy.typing as npt
 from scipy.spatial import KDTree
 
+from postcode_privacy._types import Coordinates, Edges
+
 DEFAULT_ALPHA = 3.0
 
 # Delaunay triangulations have a mean degree of about six, so six neighbours is
@@ -14,9 +16,9 @@ LOCAL_SCALE_NEIGHBOURS = 6
 
 
 def edge_lengths(
-    edges: npt.NDArray[np.int64],
-    eastings: npt.NDArray[np.float64],
-    northings: npt.NDArray[np.float64],
+    edges: Edges,
+    eastings: Coordinates,
+    northings: Coordinates,
 ) -> npt.NDArray[np.float64]:
     """Euclidean length of each edge, in the units of the grid reference."""
     points = np.column_stack([eastings, northings]).astype(np.float64)
@@ -24,8 +26,8 @@ def edge_lengths(
 
 
 def local_scale(
-    eastings: npt.NDArray[np.float64],
-    northings: npt.NDArray[np.float64],
+    eastings: Coordinates,
+    northings: Coordinates,
     *,
     neighbours: int = LOCAL_SCALE_NEIGHBOURS,
 ) -> npt.NDArray[np.float64]:
@@ -46,12 +48,12 @@ def local_scale(
 
 
 def prune_long_edges(
-    edges: npt.NDArray[np.int64],
-    eastings: npt.NDArray[np.float64],
-    northings: npt.NDArray[np.float64],
+    edges: Edges,
+    eastings: Coordinates,
+    northings: Coordinates,
     *,
     alpha: float = DEFAULT_ALPHA,
-) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
+) -> tuple[Edges, Edges]:
     """Split ``edges`` into those kept and those pruned as implausibly long.
 
     An edge is pruned when it is longer than ``alpha`` times the local scale of

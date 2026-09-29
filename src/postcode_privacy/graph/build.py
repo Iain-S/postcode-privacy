@@ -10,13 +10,12 @@ even though it means wildly different numbers of metres.
 from __future__ import annotations
 
 import numpy as np
-import numpy.typing as npt
 from scipy.spatial import Delaunay
 
+from postcode_privacy._types import Coordinates, Edges
 
-def delaunay_edges(
-    eastings: npt.NDArray[np.int64], northings: npt.NDArray[np.int64]
-) -> npt.NDArray[np.int64]:
+
+def delaunay_edges(eastings: Coordinates, northings: Coordinates) -> Edges:
     """Undirected edges of the Delaunay triangulation of the given points.
 
     Coordinates are OSGB36 eastings and northings in metres. They are projected,
