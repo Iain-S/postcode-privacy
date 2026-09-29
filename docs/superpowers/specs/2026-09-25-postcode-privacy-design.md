@@ -259,8 +259,9 @@ rather than inferring it from samples.
 `Key.generate()`, `Key.from_file(path)`, `Key.from_env(var)`. No constructor from a
 plain string.
 
-**Errors** — distinct types so callers can branch: `UnknownPostcode`,
-`TerminatedPostcode`, `MissingSubjectId`, `ArtefactVersionMismatch`. Input postcodes are
+**Errors** — distinct types so callers can branch, named with the PEP 8 `Error`
+suffix: `InvalidPostcodeError`, `UnknownPostcodeError`, `TerminatedPostcodeError`,
+`MissingSubjectIdError`, `ArtefactVersionMismatchError`. Input postcodes are
 normalised (case, internal whitespace) before lookup.
 
 ### CLI
