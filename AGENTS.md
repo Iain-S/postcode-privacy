@@ -45,6 +45,15 @@ and renormalise over that ball — **breaks pure differential privacy**, because
 inside `x`'s ball but outside `x'`'s gets probability zero under one and not the other,
 making the likelihood ratio unbounded. This is mutation-tested. Do not "simplify" it.
 
+**The distribution is decomposed by hop shell, and that is not a stylistic choice.** A
+single flat cumulative distribution over the country spans the total prior mass (~2**26
+people) times the exponential's dynamic range (`exp(epsilon * R / 2)`) times the precision
+the smallest weights need. At every usable pair of parameters that exceeds 2**64, so a
+uint64 CDF cannot represent it and a float one reintroduces the leakage integers were
+chosen to avoid. Split in two — pick a shell, then pick a node within it proportional to
+the prior alone — neither stage is large, and the only rounding anywhere is in the powers
+of `q`. Do not flatten this back into one cumulative array.
+
 **Weights are integers, not floats.** Two independent reasons: floating-point DP
 implementations leak the true input through low bits of the IEEE representation (Mironov,
 CCS 2012), and the promise that a subject's output never changes would otherwise depend on
@@ -105,6 +114,9 @@ like-for-like.
 **Exceptions take the PEP 8 `Error` suffix** (`InvalidPostcodeError`, not
 `InvalidPostcode`). Ruff's N818 enforces this; the spec was changed to match rather than
 carrying a lint exemption.
+
+**Write `np.min(x)`, not `x.min()`.** The numpy stubs resolve the no-argument overload
+to `NDArray[object_]` and the type checker rejects it. This has recurred three times.
 
 **Use `scipy.spatial.KDTree`, not `cKDTree`.** The type checker cannot resolve the legacy
 alias. They are the same implementation.

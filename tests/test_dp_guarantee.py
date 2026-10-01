@@ -10,7 +10,10 @@ import numpy.typing as npt
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from postcode_privacy._reference import distribution, hop_distances
+from postcode_privacy._reference import distribution as reference_distribution
+from postcode_privacy._reference import hop_distances
+from postcode_privacy.graph.adjacency import Adjacency
+from postcode_privacy.mechanism.hop import distribution
 
 # Floating point slack. The guarantee is exact; only the arithmetic is not.
 TOLERANCE = 1 + 1e-9
@@ -46,7 +49,9 @@ def test_likelihood_ratio_is_bounded_by_exp_epsilon_times_hop_distance(
     prior = np.ones(n)
     capped = np.minimum(hop_distances(adjacency), radius)
     distributions = [
-        distribution(adjacency, prior, epsilon=epsilon, radius=radius, source=x)
+        reference_distribution(
+            adjacency, prior, epsilon=epsilon, radius=radius, source=x
+        )
         for x in range(n)
     ]
 
@@ -58,4 +63,44 @@ def test_likelihood_ratio_is_bounded_by_exp_epsilon_times_hop_distance(
                 assert ratio <= bound, (
                     f"epsilon*d-privacy violated: P({y}|{x})/P({y}|{other}) = "
                     f"{ratio} exceeds exp({epsilon} * {capped[x, other]}) = {bound}"
+                )
+
+
+@given(
+    adjacency=graphs(),
+    epsilon=st.floats(min_value=0.05, max_value=4.0),
+    radius=st.integers(min_value=1, max_value=6),
+    prior_seed=st.integers(min_value=0, max_value=2**32 - 1),
+)
+@settings(max_examples=250, deadline=None)
+def test_the_real_implementation_satisfies_the_guarantee(
+    adjacency: npt.NDArray[np.bool_], epsilon: float, radius: int, prior_seed: int
+) -> None:
+    """The guarantee, enumerated over the shipped mechanism rather than the oracle.
+
+    Priors are non-uniform here: a prior shifts the weights and is exactly the
+    sort of thing that could break a ratio bound if it were applied in the wrong
+    place.
+    """
+    n = adjacency.shape[0]
+    rng = np.random.default_rng(prior_seed)
+    prior = rng.integers(1, 50, size=n, dtype=np.int64)
+
+    edges = np.argwhere(np.triu(adjacency, k=1)).astype(np.int64)
+    graph = Adjacency.from_edges(edges.reshape(-1, 2), n_nodes=n)
+
+    capped = np.minimum(hop_distances(adjacency), radius)
+    distributions = [
+        distribution(graph, prior, source=x, epsilon=epsilon, radius=radius).as_array(n)
+        for x in range(n)
+    ]
+
+    for x in range(n):
+        for other in range(n):
+            bound = np.exp(epsilon * capped[x, other]) * TOLERANCE
+            for y in range(n):
+                ratio = distributions[x][y] / distributions[other][y]
+                assert ratio <= bound, (
+                    f"epsilon*d-privacy violated by the real mechanism: "
+                    f"P({y}|{x})/P({y}|{other}) = {ratio} exceeds {bound}"
                 )
