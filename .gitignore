@@ -20,9 +20,21 @@ __pycache__/
 .coverage
 htmlcov/
 
-# postcode graph artefacts and source data — NEVER commit these.
-# ONSPD Northern Ireland (BT*) postcodes are not redistributable.
-*.ppg
+# Postcode graph artefacts and source data — NEVER commit these.
+#
+# ONSPD's Northern Ireland (BT) records are licensed from Land & Property
+# Services for internal use only and may not be redistributed, so committing a
+# copy would be a licensing breach, not just a large file. The patterns match by
+# name as well as by directory, so a copy made outside data/ is still caught.
 /data/
-ONSPD*.csv
-ONSPD*.zip
+*.ppg
+
+# ONS postcode products, any extension, anywhere.
+ONSPD*
+NSPL*
+*_UK.csv
+*_UK.txt
+
+# Census population extracts used to build the prior.
+census*_oa_population*.csv
+*usualresidentpopulation*.csv

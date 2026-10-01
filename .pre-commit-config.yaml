@@ -23,3 +23,16 @@ repos:
     rev: v0.0.84
     hooks:
       - id: ty
+  - repo: local
+    hooks:
+      # Belt and braces for the licensing risk: .gitignore can be bypassed with
+      # `git add -f`, a pre-commit hook cannot be bypassed by accident.
+      - id: no-postcode-data
+        name: refuse to commit postcode source data or graph artefacts
+        entry: >-
+          bash -c 'for f in "$@"; do case "$(basename "$f")" in
+          ONSPD*|NSPL*|*.ppg) echo "REFUSING: $f is postcode source data or a
+          graph artefact. ONSPD Northern Ireland records are not
+          redistributable."; exit 1;; esac; done' --
+        language: system
+        pass_filenames: true
