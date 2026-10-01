@@ -1,6 +1,9 @@
 # scratch task list — see docs/superpowers/specs/ for the design of record
 todo.md
 
+# Throwaway spikes and diagnostics, kept out of the repository.
+/scratch/
+
 # build artefacts
 /dist/
 /build/
