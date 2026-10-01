@@ -32,7 +32,7 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 
-from postcode_privacy.postcodes import normalise
+from postcode_privacy.postcodes import InvalidPostcodeError, normalise
 
 # Census counts are rounded, suppressed and inevitably out of date -- a
 # new-build estate reads as empty. A floor keeps such a postcode usable as both
@@ -73,7 +73,7 @@ def population_prior(
             "uniform prior explicitly"
         )
 
-    by_postcode = _read_pairs(postcode_populations or [], key=normalise)
+    by_postcode = _read_pairs(postcode_populations or [], key=_postcode_key)
     by_area = _read_pairs(area_populations or [], key=str)
     postcodes_per_area = Counter(output_areas.tolist())
 
@@ -99,6 +99,21 @@ def population_prior(
     return weights, PriorCoverage(from_postcode, from_area, unmatched)
 
 
+def _postcode_key(raw: str) -> str:
+    """Canonical postcode, recombining the parts of a split postcode.
+
+    Where a postcode straddles a statistical boundary, National Records of
+    Scotland publishes it as parts carrying a trailing letter -- "AB12 3GQA"
+    and "AB12 3GQB" rather than "AB12 3GQ". Dropping those rows would lose the
+    residents in them and leave the real postcode with no figure at all, so the
+    suffix is stripped and the parts summed back together.
+    """
+    try:
+        return normalise(raw)
+    except InvalidPostcodeError:
+        return normalise(raw[:-1])
+
+
 def _read_pairs(paths: list[Path], *, key: Callable[[str], str]) -> dict[str, int]:
     """Read ``code,population`` CSVs into one lookup, by first two columns."""
     lookup: dict[str, int] = {}
@@ -110,5 +125,8 @@ def _read_pairs(paths: list[Path], *, key: Callable[[str], str]) -> dict[str, in
                 if len(row) < 2 or not row[1].strip():
                     continue
                 name = row[0].strip()
-                lookup[key(name)] = int(row[1])
+                # Accumulated, not assigned: the parts of a split postcode
+                # share one key and their populations must add up.
+                code = key(name)
+                lookup[code] = lookup.get(code, 0) + int(row[1])
     return lookup

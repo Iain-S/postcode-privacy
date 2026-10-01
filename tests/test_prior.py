@@ -120,3 +120,25 @@ def test_no_sources_at_all_is_refused() -> None:
     # arrived at by supplying nothing.
     with pytest.raises(ValueError, match="no population"):
         population_prior(np.array(["AA1 1AA"]), np.array(["E00000001"]))
+
+
+def test_split_postcodes_are_recombined(tmp_path: Path) -> None:
+    # Where a postcode straddles a boundary, NRS publishes it as parts with a
+    # trailing letter: "AB12 3GQA" and "AB12 3GQB". There are 252 such rows
+    # holding 3,217 people. Dropping them would lose those residents and leave
+    # the real postcode with no figure at all, so the parts are summed back.
+    postcodes = np.array(["AB12 3GQ"])
+    areas = np.array(["S00000001"])
+    postcode_file = write(
+        tmp_path,
+        "postcodes.csv",
+        "Postcode,UsualResidentPopulation",
+        ["AB12 3GQA,5", "AB12 3GQB,7"],
+    )
+
+    prior, coverage = population_prior(
+        postcodes, areas, postcode_populations=[postcode_file]
+    )
+
+    assert prior.tolist() == [12]
+    assert coverage.from_postcode == 1

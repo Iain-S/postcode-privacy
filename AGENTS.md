@@ -28,6 +28,21 @@ condition under which the mechanism hands back the secret — whatever produced 
 Duplicate centroids were one cause; the next will be something else. Do not weaken this
 to a warning.
 
+**The prior does not affect the guarantee, only the utility.** Any strictly positive
+weighting satisfies epsilon-d-privacy; the prior cancels in the likelihood ratio. What it
+decides is which postcode within a ring is chosen, and therefore how many real people an
+output could have come from. Do not reason about it as if it were part of the privacy
+claim.
+
+**Population sources differ by nation and must not be levelled down.** Scotland publishes
+per postcode (finest), England and Wales per 2021 output area, Northern Ireland per 2021
+data zone. Splitting an area's population evenly captures variation between areas but not
+within them, which recovers 1.37x of the benefit against Scotland's 2.0x and can never
+identify an uninhabited postcode. Scotland's file also contains 252 *split* postcodes
+carrying a trailing letter (`AB12 3GQA`/`AB12 3GQB`) where a postcode straddles a
+boundary; these are summed back onto the base postcode rather than dropped, which is why
+`_read_pairs` accumulates instead of assigning.
+
 **Large-user postcodes are not nodes.** Royal Mail classes a postcode as "large user"
 when it belongs to a single organisation receiving high mail volumes. Those have no
 resident population to hide anyone among, so they are excluded from the graph entirely
