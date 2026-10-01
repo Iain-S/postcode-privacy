@@ -56,6 +56,19 @@ Excluding them also dissolved the worst co-located groups: the five largest clus
 postcodes sharing one coordinate were ~100% large-user (1,161 of 1,161 at one central
 London point).
 
+**A terminated postcode as input raises `UnknownPostcodeError`, and that is a
+decision.** It is a worse message than `TerminatedPostcodeError` would be, and it was
+chosen anyway: distinguishing the two means carrying all 918,726 terminated postcodes in
+every artefact, and the message is the only thing that improves. Behaviour is unchanged,
+because the batch `on_error` policy handles those rows either way. Do not "fix" this
+without weighing the artefact size again.
+
+**Batch `on_error` defaults to `error`, and `drop` is refused by `perturb_many`.** A
+dataset quietly losing rows is a worse outcome than a run that stops and says why, so the
+default raises. `drop` is meaningful only where a row can genuinely be removed: taking
+entries out of a list result would silently break the correspondence between input row
+and output row, so the list API raises and points at `perturb_frame`.
+
 **Known caveat, not yet resolved:** some large-user postcodes are university halls,
 hospitals and prisons, where people genuinely do live and may be registered. Those
 records now error rather than being perturbed.

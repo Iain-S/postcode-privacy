@@ -846,6 +846,7 @@ frames = [
 [package.dev-dependencies]
 dev = [
     { name = "hypothesis" },
+    { name = "pandas" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-benchmark" },
@@ -869,6 +870,7 @@ provides-extras = ["frames"]
 [package.metadata.requires-dev]
 dev = [
     { name = "hypothesis", specifier = ">=6.100" },
+    { name = "pandas", specifier = ">=2.0" },
     { name = "pre-commit", specifier = ">=3.7" },
     { name = "pytest", specifier = ">=8.0" },
     { name = "pytest-benchmark", specifier = ">=4.0" },

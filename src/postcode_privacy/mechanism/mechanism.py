@@ -4,16 +4,37 @@ from __future__ import annotations
 
 import math
 import warnings
+from collections import defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from postcode_privacy.graph.postcode_graph import PostcodeGraph
+
+if TYPE_CHECKING:  # pragma: no cover
+    # pandas is optional, behind the [frames] extra. Importing it only for type
+    # checking keeps the core library free of the dependency.
+    from pandas import DataFrame
 from postcode_privacy.mechanism.hop import Distribution, distribution
 from postcode_privacy.mechanism.prf import Key
 from postcode_privacy.mechanism.sample import sample
+from postcode_privacy.postcodes import (
+    LargeUserPostcodeError,
+    MissingSubjectIdError,
+    UnknownPostcodeError,
+)
 
 DEFAULT_MAX_TELEPORT = 1e-6
+
+# What to do with a row the mechanism cannot process -- an unknown postcode,
+# or one belonging to a single organisation. The default is to raise: a
+# dataset quietly losing rows is a worse outcome than a run that stops and
+# says why. "drop" is meaningful only where rows can be removed wholesale,
+# so the list API refuses it rather than breaking row alignment.
+ON_ERROR_POLICIES = ("error", "null", "drop")
+UNPROCESSABLE = (UnknownPostcodeError, LargeUserPostcodeError)
 
 
 class RadiusTooSmallWarning(UserWarning):
@@ -139,7 +160,7 @@ class HopMechanism:
     def perturb(self, postcode: str, *, subject_id: str, key: Key) -> str:
         """A real postcode standing in for ``postcode``, fixed for this subject."""
         if not subject_id:
-            raise ValueError(
+            raise MissingSubjectIdError(
                 "a subject_id is required: without a stable identifier the same "
                 "person cannot be given a consistent output, and repeated "
                 "releases would spend the privacy budget over and over"
@@ -167,3 +188,99 @@ class HopMechanism:
             self_probability=dist.self_probability,
             ball_size=len(dist.ball),
         )
+
+    def perturb_many(
+        self,
+        postcodes: Sequence[str],
+        subject_ids: Sequence[str],
+        *,
+        key: Key,
+        on_error: str = "error",
+    ) -> list[str | None]:
+        """Perturb many records, expanding each distinct postcode only once.
+
+        Equivalent to calling :meth:`perturb` row by row, and tested to be so.
+        It exists for speed: a dataset holds far fewer distinct postcodes than
+        rows, and expanding the ball is the expensive part. Grouping the work by
+        postcode keeps the distribution cache warm instead of thrashing it.
+
+        ``on_error`` controls rows the mechanism cannot process. ``"error"``
+        raises, ``"null"`` substitutes ``None`` and keeps every row in place.
+        ``"drop"`` is refused here: removing entries from a list result would
+        silently break the correspondence between input row and output row.
+        Use :meth:`perturb_frame`, where a row can genuinely be removed.
+        """
+        if on_error not in ON_ERROR_POLICIES:
+            raise ValueError(
+                f"on_error must be one of {ON_ERROR_POLICIES}, got {on_error!r}"
+            )
+        if on_error == "drop":
+            raise ValueError(
+                "on_error='drop' would break row alignment in a list result; "
+                "use on_error='null', or perturb_frame where rows can be removed"
+            )
+        if len(postcodes) != len(subject_ids):
+            raise ValueError(
+                f"postcodes and subject_ids must be the same length, got "
+                f"{len(postcodes)} and {len(subject_ids)}"
+            )
+
+        by_postcode: dict[str, list[int]] = defaultdict(list)
+        for row, postcode in enumerate(postcodes):
+            by_postcode[postcode].append(row)
+
+        results: list[str | None] = [None] * len(postcodes)
+        for postcode, rows in by_postcode.items():
+            for row in rows:
+                try:
+                    results[row] = self.perturb(
+                        postcode, subject_id=subject_ids[row], key=key
+                    )
+                except UNPROCESSABLE:
+                    if on_error == "error":
+                        raise
+        return results
+
+    def perturb_frame(
+        self,
+        frame: DataFrame,
+        *,
+        postcode_col: str,
+        subject_col: str,
+        key: Key,
+        out_col: str = "postcode_dp",
+        on_error: str = "error",
+    ) -> DataFrame:
+        """Return a copy of ``frame`` with a perturbed postcode column added.
+
+        The true postcode column is left untouched, because the caller decides
+        when to drop it; overwriting it in place would make the original
+        unrecoverable in a half-finished pipeline.
+
+        ``out_col`` defaults to ``postcode_dp`` on purpose. The mechanism emits
+        a plausible real postcode, and an analyst who has not read the
+        documentation must not be able to mistake it for the true one.
+
+        ``on_error`` accepts ``"error"`` (the default), ``"null"``, which keeps
+        the row with no output, and ``"drop"``, which removes it.
+        """
+        if on_error not in ON_ERROR_POLICIES:
+            raise ValueError(
+                f"on_error must be one of {ON_ERROR_POLICIES}, got {on_error!r}"
+            )
+        for column in (postcode_col, subject_col):
+            if column not in frame.columns:
+                raise KeyError(f"column {column!r} is not in the frame")
+
+        outputs = self.perturb_many(
+            [str(value) for value in frame[postcode_col]],
+            [str(value) for value in frame[subject_col]],
+            key=key,
+            on_error="error" if on_error == "error" else "null",
+        )
+
+        result = frame.copy()
+        result[out_col] = outputs
+        if on_error == "drop":
+            result = result[result[out_col].notna()]
+        return result

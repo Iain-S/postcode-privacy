@@ -15,6 +15,16 @@ class InvalidPostcodeError(ValueError):
     """Raised when a string cannot be a UK postcode."""
 
 
+class MissingSubjectIdError(ValueError):
+    """Raised when a record carries no stable subject identifier.
+
+    Named rather than a bare ValueError because it has one specific remedy,
+    and because the consequence of ignoring it is severe: without a stable
+    identifier the same person cannot be given a consistent output, and
+    every repeated release spends the privacy budget again.
+    """
+
+
 class LargeUserPostcodeError(KeyError):
     """Raised when a postcode exists but belongs to a single organisation.
 
