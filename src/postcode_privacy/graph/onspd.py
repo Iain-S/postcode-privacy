@@ -25,6 +25,15 @@ TERMINATION_COLUMN = "doterm"
 EASTING_COLUMN = "east1m"
 NORTHING_COLUMN = "north1m"
 
+# The OSGB36 national grid. Real postcode extremes sit comfortably inside it:
+# the Isles of Scilly, Shetland, Barra and Lowestoft are the four corners. A
+# coordinate outside it is corrupt, and (0, 0) is the conventional sentinel for
+# an unknown location. Either would distort the entire graph rather than just
+# its own row, because Delaunay triangulates the convex hull and one absurd
+# point drags enormous edges across the country.
+MAX_EASTING = 700_000
+MAX_NORTHING = 1_300_000
+
 REQUIRED_COLUMNS = (
     POSTCODE_COLUMN,
     TERMINATION_COLUMN,
@@ -88,6 +97,9 @@ def read_onspd(path: Path, *, gb_only: bool = False) -> OnspdTable:
             if not easting or not northing:
                 drop("no_grid_reference")
                 continue
+            if not _on_the_national_grid(int(easting), int(northing)):
+                drop("outside_national_grid")
+                continue
 
             rows.append((postcode, int(easting), int(northing)))
 
@@ -113,3 +125,8 @@ def _check_columns(fieldnames: Sequence[str] | None, path: Path) -> None:
             "Column names differ between ONSPD releases; this reader expects the "
             "August 2026 naming."
         )
+
+
+def _on_the_national_grid(easting: int, northing: int) -> bool:
+    """Whether a grid reference could plausibly be a UK location."""
+    return 0 < easting < MAX_EASTING and 0 < northing < MAX_NORTHING

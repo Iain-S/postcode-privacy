@@ -22,6 +22,12 @@ every point is already connected — an island far offshore included. Bridging e
 to repair what pruning severs, and is enabled with it. There is a test asserting this; do
 not add bridging to the unpruned path.
 
+**`check_integrity` asserts the consequence, not the cause.** `assemble()` refuses to
+return a graph with isolated nodes or more than one component, because that is the
+condition under which the mechanism hands back the secret — whatever produced it.
+Duplicate centroids were one cause; the next will be something else. Do not weaken this
+to a warning.
+
 **Duplicate coordinates are expanded, and this is load-bearing.** Qhull discards duplicate
 points, so a naive triangulation leaves every postcode sharing a centroid in no simplex at
 all — degree zero, infinitely far from everything. Under the capped metric such a node's
@@ -109,6 +115,12 @@ alias. They are the same implementation.
 
 Test-driven development throughout: write the failing test, watch it fail for the right
 reason, then implement.
+
+**Test generators must be able to produce the pathology.** Uniform random floats never
+collide, so the point-set generators could not exercise duplicate coordinates — and a
+passing connectivity test coexisted with 57,030 real postcodes having zero privacy. The
+generators now force collisions deliberately. When adding a generator, ask what real
+input property it structurally cannot produce.
 
 **Mutation-check any test that asserts an invariant.** This is established practice here,
 not a nicety. Several tests in this repository passed on first write and would have been

@@ -26,7 +26,12 @@ def test_an_unpruned_triangulation_is_always_connected(seed: int) -> None:
     rng = np.random.default_rng(seed)
     mainland = rng.uniform(0, 1000, size=(40, 2))
     island = rng.uniform(0, 20, size=(4, 2)) + np.array([9000.0, 9000.0])
-    points = np.vstack([mainland, island])
+    # Collisions are mandatory in this generator, not incidental. Uniform floats
+    # never repeat, so a generator without them silently cannot exercise the case
+    # that stranded 57,030 real postcodes -- which is exactly how that bug
+    # survived a passing connectivity test.
+    collisions = np.repeat(mainland[rng.integers(0, 40, size=3)], 4, axis=0)
+    points = np.vstack([mainland, island, collisions])
 
     edges = delaunay_edges(points[:, 0], points[:, 1])
 
@@ -36,6 +41,7 @@ def test_an_unpruned_triangulation_is_always_connected(seed: int) -> None:
     )
     n_components, _ = connected_components(adjacency, directed=False)
     assert n_components == 1
+    assert len(np.unique(edges)) == len(points), "no node may be isolated"
 
 
 def duplicated_points() -> tuple[np.ndarray, np.ndarray]:

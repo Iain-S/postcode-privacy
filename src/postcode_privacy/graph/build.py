@@ -13,6 +13,8 @@ from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
+from scipy.sparse import coo_matrix
+from scipy.sparse.csgraph import connected_components
 from scipy.spatial import Delaunay
 
 from postcode_privacy._types import Coordinates, Edges
@@ -95,6 +97,45 @@ def _expand_to_nodes(
     return np.unique(stacked, axis=0).astype(np.int64)
 
 
+class GraphIntegrityError(ValueError):
+    """Raised when a graph would give some nodes no meaningful privacy."""
+
+
+def check_integrity(edges: Edges, *, n_nodes: int) -> None:
+    """Fail if any node is isolated or the graph is disconnected.
+
+    This asserts the *consequence* rather than any particular cause. A node cut
+    off from the rest of the graph is infinitely far from every other postcode,
+    so under the capped metric its output distribution collapses onto its own
+    true value: the mechanism hands back the secret, without erroring, warning,
+    or looking unusual.
+
+    One cause of that was found in real data -- Qhull discards duplicate points,
+    stranding 57,030 postcodes that shared a centroid. The next cause will be
+    something else, which is why this check is phrased in terms of what must be
+    true rather than what has previously gone wrong.
+    """
+    degree = np.bincount(edges.ravel(), minlength=n_nodes)
+    isolated = int((degree == 0).sum())
+    if isolated:
+        raise GraphIntegrityError(
+            f"{isolated:,} of {n_nodes:,} nodes are isolated and would receive no "
+            "privacy: their output distribution collapses onto their own true value."
+        )
+
+    adjacency = coo_matrix(
+        (np.ones(len(edges)), (edges[:, 0], edges[:, 1])), shape=(n_nodes, n_nodes)
+    )
+    n_components, labels = connected_components(adjacency, directed=False)
+    if n_components > 1:
+        smallest = int(np.min(np.bincount(labels)))
+        raise GraphIntegrityError(
+            f"graph has {n_components:,} connected components; the smallest holds "
+            f"{smallest:,} node(s). Nodes cannot be hidden outside their own "
+            "component, so a small component means little or no privacy."
+        )
+
+
 @dataclass(frozen=True)
 class AssembledGraph:
     """The edge set of a postcode graph, and a record of how it was altered."""
@@ -126,15 +167,17 @@ def assemble(
     Setting ``prune_alpha`` enables both, so the cost of the artefacts can be
     measured against the cost of the heuristic.
     """
+    n_nodes = len(np.asarray(eastings))
     edges = delaunay_edges(eastings, northings)
     empty = np.empty((0, 2), dtype=np.int64)
 
     if prune_alpha is None:
+        check_integrity(edges, n_nodes=n_nodes)
         return AssembledGraph(edges=edges, pruned=empty, bridges=empty)
 
     kept, pruned = prune_long_edges(edges, eastings, northings, alpha=prune_alpha)
-    n_nodes = len(np.asarray(eastings))
     bridged, bridges = bridge_components(
         kept, pruned, eastings, northings, n_nodes=n_nodes
     )
+    check_integrity(bridged, n_nodes=n_nodes)
     return AssembledGraph(edges=bridged, pruned=pruned, bridges=bridges)

@@ -148,3 +148,34 @@ def test_a_file_missing_required_columns_is_rejected(tmp_path: Path) -> None:
 
     assert "east1m" in str(excinfo.value)
     assert "north1m" in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    ("easting", "northing"),
+    [
+        ("0", "0"),  # the conventional "unknown location" sentinel
+        ("-5", "433888"),
+        ("429774", "0"),
+        ("999999", "433888"),  # east of the national grid
+        ("429774", "9999999"),  # north of the national grid
+    ],
+)
+def test_coordinates_outside_the_national_grid_are_excluded(
+    tmp_path: Path, easting: str, northing: str
+) -> None:
+    # A single stray point distorts the whole graph, not just its own row:
+    # Delaunay triangulates the convex hull, so one absurd coordinate drags
+    # enormous edges across the country. Real extremes are comfortably inside
+    # the envelope -- Scilly, Shetland, Barra and Lowestoft all pass.
+    csv = write_onspd(
+        tmp_path,
+        [
+            "LS2 9JT,,429774,433888,E08000035,E00057834,E01011364,E02002393,A1",
+            f"ZZ1 1ZZ,,{easting},{northing},E08000035,E00057834,E01011364,E02002393,A1",
+        ],
+    )
+
+    table = read_onspd(csv)
+
+    assert list(table.postcodes) == ["LS2 9JT"]
+    assert table.dropped["outside_national_grid"] == 1
