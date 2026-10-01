@@ -99,3 +99,16 @@ def test_draws_respect_the_bound(bound: int) -> None:
 
     for subject in range(50):
         assert 0 <= key.draw(str(subject).encode(), bound=bound) < bound
+
+
+def test_a_different_tag_gives_a_different_draw() -> None:
+    # The sampler takes two draws for one subject, one to pick a shell and one
+    # to pick within it, separated only by these tags. They are distinct here as
+    # a matter of defence: nothing else guarantees the two draws are unrelated.
+    key = Key.from_bytes(b"\x01" * 32)
+    fields = (b"patient-0041", b"LS2 9JT")
+    bound = 1_000_003
+
+    assert key.draw(*fields, b"shell", bound=bound) != key.draw(
+        *fields, b"node", bound=bound
+    )

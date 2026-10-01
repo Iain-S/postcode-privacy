@@ -66,6 +66,13 @@ class Distribution:
     tail_prior: int
     prior: npt.NDArray[np.int64]
     powers: tuple[int, ...]
+    ball: npt.NDArray[np.int64]
+    prior_cumulative: npt.NDArray[np.int64]
+
+    def contains(self, node: int) -> bool:
+        """Whether ``node`` lies inside the ball, and so not in the tail."""
+        position = int(np.searchsorted(self.ball, node))
+        return position < len(self.ball) and int(self.ball[position]) == node
 
     @property
     def total_weight(self) -> int:
@@ -148,4 +155,6 @@ def distribution(
         tail_prior=tail_prior,
         prior=prior,
         powers=tuple(powers),
+        ball=np.sort(nodes),
+        prior_cumulative=np.cumsum(prior),
     )

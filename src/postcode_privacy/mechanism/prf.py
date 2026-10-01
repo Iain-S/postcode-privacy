@@ -27,6 +27,10 @@ FIELD_SEPARATOR = b"\x00"
 
 UINT64_RANGE = 2**64
 
+# Extra bytes beyond the bound's own width, so that the rejected final block is
+# a vanishing share of the range.
+SLACK_BYTES = 8
+
 
 class Key:
     """Secret key material that refuses to render itself.
@@ -69,16 +73,22 @@ class Key:
     __str__ = __repr__
 
     def draw(self, *fields: bytes, bound: int) -> int:
-        """An unbiased integer in ``[0, bound)``, determined by ``fields``."""
+        """An unbiased integer in ``[0, bound)``, determined by ``fields``.
+
+        The bound may be arbitrarily large. Shell weights are
+        arbitrary-precision integers well beyond 64 bits, so the draw sizes
+        itself to the bound rather than assuming a machine word; a fixed 64-bit
+        draw would reject every value once the bound exceeded its range.
+        """
+        n_bytes = _bytes_needed(bound)
+        value_range = 1 << (8 * n_bytes)
         message = FIELD_SEPARATOR.join(fields)
+
         for counter in range(_MAX_ATTEMPTS):
-            digest = hmac.new(
-                self._material,
-                message + FIELD_SEPARATOR + counter.to_bytes(4, "big"),
-                sha256,
-            ).digest()
-            value = int.from_bytes(digest[:8], "big")
-            reduced = reduce_without_bias(value, bound)
+            value = int.from_bytes(
+                _stream(self._material, message, counter, n_bytes), "big"
+            )
+            reduced = reduce_without_bias(value, bound, value_range=value_range)
             if reduced is not None:
                 return reduced
         raise RuntimeError("PRF rejection sampling failed implausibly often")
@@ -89,17 +99,45 @@ class Key:
 _MAX_ATTEMPTS = 64
 
 
-def reduce_without_bias(value: int, bound: int) -> int | None:
-    """Map a 64-bit ``value`` into ``[0, bound)``, or ``None`` to reject.
+def _bytes_needed(bound: int) -> int:
+    """Enough bytes that rejection is rare for a bound of this size."""
+    if bound <= 0:
+        raise ValueError("bound must be positive")
+    # SLACK_BYTES of headroom keeps the rejected final block a vanishing share
+    # of the range, so a draw almost never needs a second hash.
+    return (bound - 1).bit_length() // 8 + 1 + SLACK_BYTES
+
+
+def _stream(material: bytes, message: bytes, counter: int, n_bytes: int) -> bytes:
+    """``n_bytes`` of keyed pseudo-random output, in counter mode."""
+    blocks = []
+    for block in range(-(-n_bytes // sha256().digest_size)):
+        blocks.append(
+            hmac.new(
+                material,
+                message
+                + FIELD_SEPARATOR
+                + counter.to_bytes(4, "big")
+                + block.to_bytes(4, "big"),
+                sha256,
+            ).digest()
+        )
+    return b"".join(blocks)[:n_bytes]
+
+
+def reduce_without_bias(
+    value: int, bound: int, *, value_range: int = UINT64_RANGE
+) -> int | None:
+    """Map ``value`` from ``[0, value_range)`` into ``[0, bound)``, or reject.
 
     Taking ``value % bound`` directly would be biased whenever ``bound`` does not
-    divide ``2**64``: the low residues would occur slightly more often than the
+    divide the range: the low residues would occur slightly more often than the
     high ones. Values in the final, incomplete block are rejected instead, which
     costs an occasional extra hash and buys exact uniformity.
     """
     if bound <= 0:
         raise ValueError("bound must be positive")
-    usable = (UINT64_RANGE // bound) * bound
+    usable = (value_range // bound) * bound
     if value >= usable:
         return None
     return value % bound
