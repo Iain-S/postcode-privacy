@@ -15,6 +15,14 @@ class InvalidPostcodeError(ValueError):
     """Raised when a string cannot be a UK postcode."""
 
 
+class UnknownPostcodeError(KeyError):
+    """Raised when a postcode is well-formed but absent from the graph."""
+
+    def __str__(self) -> str:
+        # KeyError quotes its argument, which buries the message in repr noise.
+        return str(self.args[0]) if self.args else ""
+
+
 def normalise(postcode: str) -> str:
     """Return ``postcode`` in canonical form: upper case, one separating space.
 
