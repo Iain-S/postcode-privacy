@@ -40,6 +40,30 @@ of scope and is a separate project.
 
 ---
 
+## Prior art
+
+Metric differential privacy over a graph is **not novel**, and the design should cite
+rather than claim it. **Geo-Graph-Indistinguishability** (Takagi, Cao, Yoshikawa et al.,
+arXiv:2010.13449) defines exactly this notion over road networks and gives the
+Graph-Exponential Mechanism for it. Their motivation is the strongest available argument
+for using a graph at all: Euclidean geo-indistinguishability *overstates* the privacy it
+delivers, because a real adversary knows the network and discounts outputs that are not
+reachable.
+
+What this library contributes on top of that prior work:
+
+- The UK postcode unit as the secret space, with a graph derived from ONSPD centroids.
+- A population-weighted prior, so outputs land where people actually live.
+- The **capped metric** `min(d, R)`, which makes the mechanism exactly computable over
+  1.7M nodes while remaining pure DP -- the usual ball-truncation does not.
+- Keyed-deterministic perturbation, so repeated releases of the same subject cost one ε.
+- Integer weights, closing the floating-point leakage channel.
+
+Before the methods note is written, the GG-I papers must be read properly to check how
+much of the above they already cover -- in particular whether GEM handles truncation.
+
+---
+
 ## The mechanism
 
 ### Guarantee
@@ -163,26 +187,34 @@ Euclidean distance is honest) gives a planar adjacency with mean degree ~6 regar
 local density — precisely the density-adaptive property we want, and far better behaved
 than k-nearest-neighbours, which produces asymmetric edges and hops across estuaries.
 
-Pruning must be **adaptive, not a fixed length threshold** — a 5 km cutoff is absurd in
-central Manchester and over-aggressive in Caithness. Drop edge `(u,v)` when its length
-exceeds `α ·` the larger of the two endpoints' **local scale**, `α` default 3. This
-removes the spurious long convex-hull edges around the coastline and most
-water-crossings, while leaving rural graphs connected.
+### Pruning is off by default
 
-Local scale is the median distance to a node's six nearest *points*, not the median
-length of its incident *edges*. The edge-based definition — the original design, and the
-obvious one — fails exactly where it matters. At a node facing an estuary the edges
-crossing the water outnumber the local ones, so they set the median themselves, and the
-statistic meant to detect long edges is defined by them. The long edges hide each other.
-Nearest-neighbour distances measure point density directly and cannot be poisoned that
-way. This was caught by the two-cluster test before any real data was involved: the
-edge-based rule pruned only 4 of 9 gap-spanning edges.
+Delaunay triangulates the convex hull, so it fills concavities: the Thames Estuary, the
+Bristol Channel, the Wash and Morecambe Bay all get spanned, producing edges of twenty
+kilometres across open water that the mechanism treats as one hop -- identical to a
+literal next-door neighbour. Those artefacts are real and they damage utility.
 
-Then bridge: find connected components, connect each to its nearest neighbouring
-component by the shortest inter-component centroid pair, marked as a bridge edge. This
-keeps Scilly, Orkney, Shetland, Arran, the Isle of Wight and Northern Ireland inside the
-guarantee. (`bridge_cost` is a config knob if a future version wants sea crossings to
-cost more than one hop; v1 ships cost 1.)
+They are nonetheless **not pruned in v1**, because no geometric criterion can fix them.
+Water and empty moorland are the same thing in a point set: a gap with nothing in it.
+A length threshold cannot separate the Solent from Dartmoor, and the parameter-free
+alternatives do no better -- Gabriel and relative-neighbourhood graphs keep an
+estuary-spanning edge for precisely the same reason, since the disc or lune over the
+water contains no points. The information needed is not in the data.
+
+An adaptive length heuristic (local scale from k nearest points, threshold `alpha` times
+that, after the manner of chi-shapes) is implemented and tested, but **opt-in and off by
+default**. It exists so that the diagnostic can measure what the artefacts cost against
+what the heuristic costs, not because the parameter is justified. `alpha` is not a term
+of art; it is this project's name for a tunable with no ground truth to tune against.
+
+Doing this properly means supplying the missing information, which is what the GG-I work
+does by using a road network: you can only cross water where a bridge exists. OS Open
+Roads is OGL and that is the natural v2. The cost is that hop density would then follow
+junction density rather than population.
+
+Because pruning is off, **bridging is not needed either.** The unmodified triangulation
+already connects every point, islands included -- Scilly reaches Cornwall from the
+outset. Bridging exists only to repair what pruning severs, and is enabled with it.
 
 Restrict nodes to **live postcodes only** (`doterm` empty in ONSPD) — emitting a
 terminated postcode would be an obvious tell.
@@ -386,9 +418,11 @@ Only two places, and both are contained:
 
 - **Movers.** Keying on `(subject, postcode)` leaks that a move occurred. Documented as a
   v1 limitation; a proper treatment needs a sequential-release analysis.
-- **Bridge plausibility.** A Scilly resident can be reported in Cornwall. Correct for
-  privacy, potentially startling for users; the `bridge_cost` knob exists but v1 does not
-  tune it.
+- **Estuary shortcuts.** Raw Delaunay makes Kent and Essex one hop apart across the
+  Thames Estuary. Measure how many nodes are affected and how heavy the displacement tail
+  is for them before deciding whether v2 needs road-network data.
+- **Road network as the graph.** The principled fix, and what the GG-I literature uses.
+  Deferred, not rejected.
 - **Delaunay across the border.** Anglo-Scottish and any Irish land-border edges are kept
   deliberately — administrative boundaries should not create privacy cliffs — but this
   will surprise some users and needs calling out in the docs.
