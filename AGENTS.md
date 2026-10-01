@@ -63,10 +63,17 @@ Consequences, all enforced:
 
 ## Known traps
 
-**ONSPD column names are not what older documentation says.** The current release uses
-`east1m`/`north1m` (not `oseast1m`/`osnrth1m`), plus `oa21cd`, `lsoa21cd`, `msoa21cd`,
-`lad26cd`, `ruc21ind`, `usrtypind`, `gridind`. Values are quoted. The reader in
-`graph/onspd.py` still expects the old names and needs fixing — see `todo.md`.
+**ONSPD column names change between releases.** The August 2026 release uses
+`east1m`/`north1m`, not the `oseast1m`/`osnrth1m` of earlier ones; also `oa21cd`,
+`lsoa21cd`, `msoa21cd`, `lad26cd`, `ruc21ind`, `usrtypind`, `gridind`. Values are quoted.
+The reader validates the header and raises `OnspdSchemaError` rather than reading on,
+because a renamed column otherwise makes every row fail the grid-reference test and an
+unreadable file looks exactly like an empty country. If a new release renames something,
+update the constants at the top of `graph/onspd.py`.
+
+**Test fixtures encoded the wrong column names for a while and the suite passed.** That
+is the failure mode to watch for in this repository: fixtures that confirm an assumption
+instead of checking reality. Verify parsers against the real file, not only fixtures.
 
 **A radius that is too small is a silent utility disaster.** It does not error; it quietly
 raises the "teleport" probability, the chance of landing anywhere in the country drawn

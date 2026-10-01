@@ -7,9 +7,14 @@ not redistributable.
 
 from pathlib import Path
 
-from postcode_privacy.graph.onspd import read_onspd
+import pytest
 
-HEADER = "pcds,doterm,oseast1m,osnrth1m,oslaua,oa21,lsoa21,msoa21,ruc21ind"
+from postcode_privacy.graph.onspd import OnspdSchemaError, read_onspd
+
+# These are the real ONSPD column names, verified against the August 2026
+# release. Earlier releases used oseast1m/osnrth1m and the fixture encoded
+# that guess, so the suite passed while the reader could not read a real file.
+HEADER = "pcds,doterm,east1m,north1m,lad26cd,oa21cd,lsoa21cd,msoa21cd,ruc21ind"
 
 
 def write_onspd(path: Path, rows: list[str]) -> Path:
@@ -117,3 +122,29 @@ def test_dropped_rows_are_counted_by_reason(tmp_path: Path) -> None:
         "northern_ireland": 1,
     }
     assert table.n_rows_read == 4
+
+
+def test_grid_references_may_be_zero_padded(tmp_path: Path) -> None:
+    # Northings in the real file are written with a leading zero, e.g. "0801193".
+    csv = write_onspd(
+        tmp_path,
+        ["AB10 1AL,,385386,0801193,S12000033,S00137176,S01006506,S02001261,1"],
+    )
+
+    table = read_onspd(csv)
+
+    assert list(table.northings) == [801193]
+
+
+def test_a_file_missing_required_columns_is_rejected(tmp_path: Path) -> None:
+    # ONSPD renames columns between releases. Without this check the reader
+    # silently drops every row, which looks like an empty country rather than an
+    # unreadable file.
+    csv = tmp_path / "old.csv"
+    csv.write_text("pcds,doterm,oseast1m,osnrth1m\nLS2 9JT,,429774,433888\n")
+
+    with pytest.raises(OnspdSchemaError) as excinfo:
+        read_onspd(csv)
+
+    assert "east1m" in str(excinfo.value)
+    assert "north1m" in str(excinfo.value)

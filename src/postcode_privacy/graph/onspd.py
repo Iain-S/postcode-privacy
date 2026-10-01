@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,6 +14,27 @@ from postcode_privacy.postcodes import normalise
 
 # Northern Ireland postcodes all begin "BT".
 NORTHERN_IRELAND_PREFIX = "BT"
+
+# Column names as published in the August 2026 release. ONSPD renames columns
+# between releases -- earlier ones called the grid reference oseast1m/osnrth1m --
+# so the header is validated rather than assumed. Without that check a renamed
+# column makes every row fail the grid-reference test, and an unreadable file
+# looks exactly like an empty country.
+POSTCODE_COLUMN = "pcds"
+TERMINATION_COLUMN = "doterm"
+EASTING_COLUMN = "east1m"
+NORTHING_COLUMN = "north1m"
+
+REQUIRED_COLUMNS = (
+    POSTCODE_COLUMN,
+    TERMINATION_COLUMN,
+    EASTING_COLUMN,
+    NORTHING_COLUMN,
+)
+
+
+class OnspdSchemaError(ValueError):
+    """Raised when an ONSPD file lacks columns this reader needs."""
 
 
 @dataclass(frozen=True)
@@ -48,17 +70,21 @@ def read_onspd(path: Path, *, gb_only: bool = False) -> OnspdTable:
         dropped[reason] = dropped.get(reason, 0) + 1
 
     with Path(path).open(newline="", encoding="utf-8-sig") as handle:
-        for row in csv.DictReader(handle):
-            n_rows_read += 1
-            postcode = normalise(row["pcds"])
+        reader = csv.DictReader(handle)
+        _check_columns(reader.fieldnames, path)
 
-            if row["doterm"].strip():
+        for row in reader:
+            n_rows_read += 1
+            postcode = normalise(row[POSTCODE_COLUMN])
+
+            if row[TERMINATION_COLUMN].strip():
                 drop("terminated")
                 continue
             if gb_only and postcode.startswith(NORTHERN_IRELAND_PREFIX):
                 drop("northern_ireland")
                 continue
-            easting, northing = row["oseast1m"].strip(), row["osnrth1m"].strip()
+            easting = row[EASTING_COLUMN].strip()
+            northing = row[NORTHING_COLUMN].strip()
             if not easting or not northing:
                 drop("no_grid_reference")
                 continue
@@ -75,3 +101,15 @@ def read_onspd(path: Path, *, gb_only: bool = False) -> OnspdTable:
         n_rows_read=n_rows_read,
         dropped=dropped,
     )
+
+
+def _check_columns(fieldnames: Sequence[str] | None, path: Path) -> None:
+    """Fail loudly when the file does not carry the columns we read."""
+    present = set(fieldnames or ())
+    missing = [column for column in REQUIRED_COLUMNS if column not in present]
+    if missing:
+        raise OnspdSchemaError(
+            f"{path} is missing required ONSPD column(s): {', '.join(missing)}. "
+            "Column names differ between ONSPD releases; this reader expects the "
+            "August 2026 naming."
+        )
