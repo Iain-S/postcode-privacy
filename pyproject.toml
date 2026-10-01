@@ -26,6 +26,10 @@ frames = ["pandas>=2.0", "pyarrow>=14"]
 postcode-privacy = "postcode_privacy.cli:main"
 
 [dependency-groups]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+]
 dev = [
     "pytest>=8.0",
     "hypothesis>=6.100",

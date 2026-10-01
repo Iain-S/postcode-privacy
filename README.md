@@ -13,8 +13,11 @@ Postcode units are joined into a graph where edges link geographic neighbours, s
 6 km on Bodmin Moor. That is the right behaviour, because the privacy question is
 *how many other people could I be?*, not *how many metres away am I?*.
 
-**Status: pre-alpha.** Nothing here is usable yet. See `docs/methods.md` for the formal
-statement and proofs, and `docs/superpowers/specs/` for the design of record.
+**Documentation: <https://istenson.github.io/postcode-privacy/>**
+
+**Status: pre-alpha.** Nothing here is usable yet. The documented command lines
+describe the intended interface; they do not run. See `docs/superpowers/specs/` for
+the design of record.
 
 ## Credit
 

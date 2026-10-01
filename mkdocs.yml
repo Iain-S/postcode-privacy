@@ -1,0 +1,49 @@
+site_name: postcode-privacy
+site_description: Differential privacy for UK postcodes, measured in graph hops rather than metres
+site_url: https://istenson.github.io/postcode-privacy/
+repo_url: https://github.com/istenson/postcode-privacy
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle: {icon: material/weather-night, name: Switch to dark mode}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle: {icon: material/weather-sunny, name: Switch to light mode}
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - toc.follow
+
+nav:
+  - Overview: index.md
+  - Getting started: getting-started.md
+  - Why not just truncate?: why-not-truncation.md
+  - How it works: how-it-works.md
+  - Limitations: limitations.md
+  - References: references.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight: {anchor_linenums: true}
+  - pymdownx.inlinehilite
+  - pymdownx.arithmatex: {generic: true}
+  - toc: {permalink: true}
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+# The design spec and task notes live under docs/ for convenience but are not
+# part of the published site.
+exclude_docs: |
+  superpowers/

@@ -4,6 +4,7 @@ todo.md
 # build artefacts
 /dist/
 /build/
+/site/
 *.egg-info/
 __pycache__/
 *.py[cod]
