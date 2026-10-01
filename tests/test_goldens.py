@@ -40,6 +40,13 @@ KEY_MATERIAL = bytes(range(32))
 SUBJECTS = [f"subject-{i}" for i in range(8)]
 SOURCE = "A010 1AA"
 
+# The tail goldens below use a deliberately small radius, because that is the
+# only way to leave mass outside the ball and exercise the tail branch at all.
+# The mechanism rightly warns about that, and here it is expected, not a defect.
+pytestmark = pytest.mark.filterwarnings(
+    "ignore::postcode_privacy.mechanism.mechanism.RadiusTooSmallWarning"
+)
+
 # Radius 66 covers the whole graph, so every draw lands in a shell.
 GOLDEN_SHELL_BRANCH = [
     "A006 1AA",

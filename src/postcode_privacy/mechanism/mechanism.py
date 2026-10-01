@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 from dataclasses import dataclass
 
 import numpy as np
@@ -13,6 +14,25 @@ from postcode_privacy.mechanism.prf import Key
 from postcode_privacy.mechanism.sample import sample
 
 DEFAULT_MAX_TELEPORT = 1e-6
+
+
+class RadiusTooSmallWarning(UserWarning):
+    """An explicit radius leaves more mass outside the ball than intended."""
+
+
+def teleport_bound(
+    *, epsilon: float, total_prior: int, min_prior: int, radius: int
+) -> float:
+    """An upper bound on the teleport probability at ``radius``.
+
+    The same conservative bound ``radius_for`` is derived from, read forwards
+    instead of backwards: a node's tail weight is at most the whole national
+    prior times ``q**radius``, while its total weight is at least the prior
+    accumulated over the shells that must exist below the radius.
+    """
+    q = math.exp(-epsilon / 2)
+    floor = min_prior / (1 - q)
+    return total_prior * q**radius / floor
 
 
 def radius_for(
@@ -69,12 +89,36 @@ class HopMechanism:
         self.graph = graph
         self.epsilon = epsilon
         self.max_teleport = max_teleport
-        self.radius = radius or radius_for(
+        total_prior = int(np.sum(graph.prior))
+        min_prior = int(np.min(graph.prior))
+        derived = radius_for(
             epsilon=epsilon,
-            total_prior=int(np.sum(graph.prior)),
-            min_prior=int(np.min(graph.prior)),
+            total_prior=total_prior,
+            min_prior=min_prior,
             max_teleport=max_teleport,
         )
+        self.radius = radius or derived
+
+        # A radius supplied by the caller is a deliberate act, so this warns
+        # rather than raising. But too small a radius fails silently -- it does
+        # not error, it quietly raises the chance of reporting someone
+        # anywhere in the country -- and a silent failure is the shape of
+        # defect this project has already shipped twice.
+        if radius is not None and radius < derived:
+            implied = teleport_bound(
+                epsilon=epsilon,
+                total_prior=total_prior,
+                min_prior=min_prior,
+                radius=radius,
+            )
+            warnings.warn(
+                f"radius={radius} allows a teleport probability of up to "
+                f"{min(implied, 1.0):.2g}, above the requested max_teleport of "
+                f"{max_teleport:.2g}; outputs will land anywhere in the country "
+                f"that often. radius={derived} would meet the target.",
+                RadiusTooSmallWarning,
+                stacklevel=2,
+            )
         # Datasets hold far fewer distinct postcodes than rows, so the expensive
         # part -- expanding the ball -- is paid once per postcode, not per person.
         self._cache: dict[int, Distribution] = {}

@@ -1,9 +1,12 @@
 """The public mechanism: postcodes in, postcodes out."""
 
+import warnings
+
 import numpy as np
 import pytest
 
 from postcode_privacy import HopMechanism, Key, PostcodeGraph
+from postcode_privacy.mechanism.mechanism import RadiusTooSmallWarning
 from postcode_privacy.postcodes import (
     LargeUserPostcodeError,
     UnknownPostcodeError,
@@ -160,7 +163,9 @@ def test_a_radius_smaller_than_the_derived_one_misses_the_target() -> None:
     graph = long_path()
     derived = HopMechanism(graph, epsilon=1.0, max_teleport=1e-6).radius
 
-    too_small = HopMechanism(graph, epsilon=1.0, radius=derived // 2)
+    # The warning is the subject of its own tests; here it is expected noise.
+    with pytest.warns(RadiusTooSmallWarning):
+        too_small = HopMechanism(graph, epsilon=1.0, radius=derived // 2)
 
     assert too_small.distribution(str(graph.postcodes[100])).teleport_probability > 1e-6
 
@@ -206,3 +211,51 @@ def test_no_output_is_ever_a_large_user_postcode() -> None:
     }
 
     assert outputs <= set(RING_POSTCODES)
+
+
+def test_an_explicit_radius_that_is_too_small_warns() -> None:
+    # A too-small radius does not fail, it quietly inflates the teleport
+    # probability -- the chance of being reported anywhere in the country. That
+    # is a silent utility disaster, and silent failures have bitten this
+    # project twice already.
+    graph = long_path()
+
+    with pytest.warns(RadiusTooSmallWarning, match="teleport"):
+        HopMechanism(graph, epsilon=1.0, radius=3, max_teleport=1e-6)
+
+
+def test_an_explicit_radius_that_is_large_enough_does_not_warn() -> None:
+    graph = long_path()
+    derived = HopMechanism(graph, epsilon=1.0, max_teleport=1e-6).radius
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        HopMechanism(graph, epsilon=1.0, radius=derived, max_teleport=1e-6)
+
+
+def test_the_warning_says_what_to_do_about_it() -> None:
+    # A warning that only says "too small" leaves the caller guessing. It cannot
+    # report the teleport probability actually achieved -- it fires at
+    # construction, before any postcode is chosen, and the value differs per
+    # node -- so it reports the bound and, more usefully, the radius that would
+    # meet the target.
+    with pytest.warns(RadiusTooSmallWarning) as caught:
+        HopMechanism(long_path(), epsilon=1.0, radius=3, max_teleport=1e-6)
+
+    derived = HopMechanism(long_path(), epsilon=1.0, max_teleport=1e-6).radius
+    message = str(caught[0].message)
+
+    assert "radius=3" in message
+    assert "1e-06" in message
+    assert f"radius={derived}" in message
+
+
+def test_a_radius_one_hop_short_still_warns() -> None:
+    # The boundary case, added because a mutant that only warned below
+    # derived - 1 survived without it. The derived radius is the SMALLEST one
+    # meeting the target, so one less necessarily misses it and must warn.
+    graph = long_path()
+    derived = HopMechanism(graph, epsilon=1.0, max_teleport=1e-6).radius
+
+    with pytest.warns(RadiusTooSmallWarning):
+        HopMechanism(graph, epsilon=1.0, radius=derived - 1, max_teleport=1e-6)
