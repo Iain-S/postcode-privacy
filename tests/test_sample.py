@@ -55,8 +55,18 @@ def test_sampling_is_deterministic_for_a_subject() -> None:
     dist = distribution(graph, prior, source=0, epsilon=1.0, radius=3)
     key = Key.from_bytes(b"\x01" * 32)
 
-    first = sample(dist, key=key, fields=(b"patient-1", b"LS2 9JT"))
-    second = sample(dist, key=key, fields=(b"patient-1", b"LS2 9JT"))
+    first = sample(
+        dist,
+        key=key,
+        fields=(b"patient-1", b"LS2 9JT"),
+        prior_cumulative=np.cumsum(prior),
+    )
+    second = sample(
+        dist,
+        key=key,
+        fields=(b"patient-1", b"LS2 9JT"),
+        prior_cumulative=np.cumsum(prior),
+    )
 
     assert first == second
 
@@ -68,7 +78,12 @@ def test_a_different_key_gives_a_different_mapping() -> None:
     fields = (b"patient-1", b"LS2 9JT")
 
     outputs = {
-        sample(dist, key=Key.from_bytes(bytes([n]) * 32), fields=fields)
+        sample(
+            dist,
+            key=Key.from_bytes(bytes([n]) * 32),
+            fields=fields,
+            prior_cumulative=np.cumsum(prior),
+        )
         for n in range(1, 40)
     }
 
@@ -91,7 +106,13 @@ def test_sampling_realises_the_distribution() -> None:
     key = Key.from_bytes(b"\x07" * 32)
 
     draws = [
-        sample(dist, key=key, fields=(f"subject-{i}".encode(),)) for i in range(20_000)
+        sample(
+            dist,
+            key=key,
+            fields=(f"subject-{i}".encode(),),
+            prior_cumulative=np.cumsum(prior),
+        )
+        for i in range(20_000)
     ]
     empirical = np.bincount(draws, minlength=4) / len(draws)
 
@@ -105,7 +126,9 @@ def test_every_sample_is_a_real_node() -> None:
     key = Key.from_bytes(b"\x05" * 32)
 
     for i in range(500):
-        node = sample(dist, key=key, fields=(f"s{i}".encode(),))
+        node = sample(
+            dist, key=key, fields=(f"s{i}".encode(),), prior_cumulative=np.cumsum(prior)
+        )
         assert 0 <= node < 4
 
 
@@ -117,7 +140,12 @@ def test_the_tail_is_reachable_and_the_ball_is_not_over_sampled() -> None:
     dist = distribution(graph, prior, source=0, epsilon=0.01, radius=1)
     key = Key.from_bytes(b"\x09" * 32)
 
-    seen = {sample(dist, key=key, fields=(f"s{i}".encode(),)) for i in range(400)}
+    seen = {
+        sample(
+            dist, key=key, fields=(f"s{i}".encode(),), prior_cumulative=np.cumsum(prior)
+        )
+        for i in range(400)
+    }
 
     assert seen == {0, 1, 2, 3}, "tail sampling must be able to reach every node"
 
@@ -141,7 +169,13 @@ def test_every_postcode_in_a_ring_is_reachable_and_equally_likely() -> None:
     key = Key.from_bytes(b"\x0b" * 32)
 
     draws = [
-        sample(dist, key=key, fields=(f"subject-{i}".encode(),)) for i in range(8_000)
+        sample(
+            dist,
+            key=key,
+            fields=(f"subject-{i}".encode(),),
+            prior_cumulative=np.cumsum(prior),
+        )
+        for i in range(8_000)
     ]
     leaves = np.bincount(draws, minlength=9)[1:]
 

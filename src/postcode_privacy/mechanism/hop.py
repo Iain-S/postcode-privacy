@@ -67,7 +67,6 @@ class Distribution:
     prior: npt.NDArray[np.int64]
     powers: tuple[int, ...]
     ball: npt.NDArray[np.int64]
-    prior_cumulative: npt.NDArray[np.int64]
 
     def contains(self, node: int) -> bool:
         """Whether ``node`` lies inside the ball, and so not in the tail."""
@@ -156,5 +155,4 @@ def distribution(
         prior=prior,
         powers=tuple(powers),
         ball=np.sort(nodes),
-        prior_cumulative=np.cumsum(prior),
     )

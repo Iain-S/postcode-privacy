@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import numpy.typing as npt
@@ -24,6 +24,15 @@ class PostcodeGraph:
     postcodes: npt.NDArray[np.str_]
     adjacency: Adjacency
     prior: npt.NDArray[np.int64]
+
+    def __post_init__(self) -> None:
+        # Shared by every distribution drawn from this graph. Held here rather
+        # than on each distribution, which is cached per distinct postcode: on
+        # the real graph this array is 14 MB, so a copy per postcode would cost
+        # gigabytes for a dataset of any size.
+        object.__setattr__(self, "prior_cumulative", np.cumsum(self.prior))
+
+    prior_cumulative: npt.NDArray[np.int64] = field(init=False, repr=False)
 
     @classmethod
     def from_edges(

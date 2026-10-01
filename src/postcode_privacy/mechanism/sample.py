@@ -39,7 +39,13 @@ def choose(cumulative: Sequence[int], draw: int) -> int:
     return bisect_right(cumulative, draw)
 
 
-def sample(dist: Distribution, *, key: Key, fields: tuple[bytes, ...]) -> int:
+def sample(
+    dist: Distribution,
+    *,
+    key: Key,
+    fields: tuple[bytes, ...],
+    prior_cumulative: npt.NDArray[np.int64],
+) -> int:
     """The output node for one subject, as a deterministic function of ``fields``."""
     shell_cumulative = list(accumulate([*dist.shell_weights, dist.tail_weight]))
     total = shell_cumulative[-1]
@@ -48,7 +54,7 @@ def sample(dist: Distribution, *, key: Key, fields: tuple[bytes, ...]) -> int:
 
     if shell < len(dist.shell_nodes):
         return _within(dist.shell_nodes[shell], dist.prior, key, fields, b"node")
-    return _from_the_tail(dist, key, fields)
+    return _from_the_tail(dist, key, fields, prior_cumulative)
 
 
 def _within(
@@ -64,7 +70,12 @@ def _within(
     return int(nodes[np.searchsorted(cumulative, draw, side="right")])
 
 
-def _from_the_tail(dist: Distribution, key: Key, fields: tuple[bytes, ...]) -> int:
+def _from_the_tail(
+    dist: Distribution,
+    key: Key,
+    fields: tuple[bytes, ...],
+    prior_cumulative: npt.NDArray[np.int64],
+) -> int:
     """A node at or beyond the cap, in proportion to its prior.
 
     Those nodes are never enumerated -- that is the point of capping the metric
@@ -72,7 +83,7 @@ def _from_the_tail(dist: Distribution, key: Key, fields: tuple[bytes, ...]) -> i
     reject anything that turns out to lie inside the ball. The ball holds a small
     share of the national prior, so rejection is rare.
     """
-    cumulative = dist.prior_cumulative
+    cumulative = prior_cumulative
     bound = int(cumulative[-1])
     for attempt in range(MAX_TAIL_ATTEMPTS):
         draw = key.draw(*fields, b"tail", attempt.to_bytes(4, "big"), bound=bound)

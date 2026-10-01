@@ -30,7 +30,14 @@ def radius_for(
     its own prior, so holding ``total_prior * q**radius / min_prior`` under the
     target bounds every node at once without inspecting any of them.
     """
-    slack = math.log(total_prior / (min_prior * max_teleport))
+    q = math.exp(-epsilon / 2)
+    # Z(x) is at least the prior accumulated over the shells that must exist.
+    # The graph is connected, so while the tail is non-empty every hop below the
+    # radius contains at least one node, contributing at least min_prior * q**h.
+    # Using only the source's own prior -- the obvious bound -- is looser, though
+    # not by much: the saving is a couple of hops.
+    floor = min_prior / (1 - q)
+    slack = math.log(total_prior / (floor * max_teleport))
     return max(1, math.ceil(2 * slack / epsilon))
 
 
@@ -101,6 +108,7 @@ class HopMechanism:
                 subject_id.encode(),
                 str(self.graph.postcodes[dist.source]).encode(),
             ),
+            prior_cumulative=self.graph.prior_cumulative,
         )
         return str(self.graph.postcodes[node])
 

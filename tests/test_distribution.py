@@ -113,3 +113,34 @@ def test_the_integer_weights_agree_with_the_probabilities(
     tail = np.setdiff1d(np.arange(4), in_a_shell)
     assert probabilities[tail].sum() == pytest.approx(dist.tail_weight / total)
     assert dist.teleport_probability == pytest.approx(probabilities[tail].sum())
+
+
+def test_a_distribution_costs_memory_in_proportion_to_its_ball() -> None:
+    """A distribution must not carry a copy of anything country-sized.
+
+    Distributions are cached per distinct postcode, so any array scaling with the
+    whole graph is paid again for every postcode in the dataset. On the real
+    graph one national-scale array costs 14 MB, which a thousand distinct
+    postcodes turns into 16 GB. Whatever is shared across distributions belongs
+    to the graph, not to each distribution.
+    """
+    n_nodes = 400
+    edges = np.array([[i, i + 1] for i in range(n_nodes - 1)], dtype=np.int64)
+    graph = Adjacency.from_edges(edges, n_nodes=n_nodes)
+    prior = np.ones(n_nodes, dtype=np.int64)
+
+    dist = distribution(graph, prior, source=0, epsilon=2.0, radius=4)
+
+    ball_size = len(dist.ball)
+    assert ball_size < n_nodes, "the ball must be smaller than the graph here"
+
+    owned = [
+        value
+        for name, value in vars(dist).items()
+        if isinstance(value, np.ndarray) and name != "prior"
+    ]
+    for array in owned:
+        assert len(array) <= ball_size, (
+            f"a distribution owns an array of length {len(array)} but its ball "
+            f"holds only {ball_size} nodes"
+        )
