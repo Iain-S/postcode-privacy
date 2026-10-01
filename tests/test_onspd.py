@@ -205,3 +205,16 @@ def test_large_user_postcodes_are_excluded_but_remembered(tmp_path: Path) -> Non
     assert list(table.postcodes) == ["LS2 9JT"]
     assert list(table.large_user) == ["LS1 4AP"]
     assert table.dropped["large_user"] == 1
+
+
+def test_output_area_codes_are_read(tmp_path: Path) -> None:
+    # The population prior joins on these: output areas in England and Wales,
+    # data zones in Northern Ireland, output areas in Scotland.
+    csv = write_onspd(
+        tmp_path,
+        ["LS2 9JT,,429774,433888,E08000035,E00057834,E01011364,E02002393,A1,0"],
+    )
+
+    table = read_onspd(csv)
+
+    assert list(table.output_areas) == ["E00057834"]

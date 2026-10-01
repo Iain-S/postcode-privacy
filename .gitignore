@@ -39,3 +39,5 @@ NSPL*
 # Census population extracts used to build the prior.
 census*_oa_population*.csv
 *usualresidentpopulation*.csv
+ni_census*
+*census-2021*
