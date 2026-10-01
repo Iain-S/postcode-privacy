@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+import numpy.typing as npt
 from scipy.spatial import Delaunay
 
 from postcode_privacy._types import Coordinates, Edges
@@ -26,18 +27,72 @@ def delaunay_edges(eastings: Coordinates, northings: Coordinates) -> Edges:
     so Euclidean distance between them is honest and the triangulation needs no
     spherical correction.
 
+    Points sharing a coordinate need care. Qhull discards duplicates, so a naive
+    triangulation leaves every duplicated postcode in no simplex at all --
+    isolated, infinitely far from the rest of the country. Under the capped
+    metric such a node's mechanism returns its own true postcode with
+    probability very close to one, so the privacy loss is total and silent. Real
+    ONSPD data has tens of thousands of them. Here the triangulation is computed
+    over distinct coordinates and then expanded, so that postcodes at the same
+    point are adjacent to each other and share the same outside neighbours --
+    one place, fully interchangeable members.
+
     Returns an ``(m, 2)`` array of node index pairs, each with the lower index
     first, sorted and deduplicated so the output does not depend on the order
     Qhull happened to emit simplices in.
     """
     points = np.column_stack([eastings, northings]).astype(np.float64)
-    simplices = Delaunay(points).simplices
+    locations, node_location = np.unique(points, axis=0, return_inverse=True)
+    node_location = node_location.ravel()
 
+    simplices = Delaunay(locations).simplices
     pairs = np.concatenate(
         [simplices[:, [0, 1]], simplices[:, [1, 2]], simplices[:, [0, 2]]]
     )
-    pairs = np.sort(pairs, axis=1)
-    return np.unique(pairs, axis=0).astype(np.int64)
+    location_edges = np.unique(np.sort(pairs, axis=1), axis=0)
+
+    if len(locations) == len(points):
+        return location_edges.astype(np.int64)
+
+    return _expand_to_nodes(location_edges, node_location, len(locations))
+
+
+def _expand_to_nodes(
+    location_edges: Edges, node_location: npt.NDArray[np.intp], n_locations: int
+) -> Edges:
+    """Lift edges between locations to edges between the nodes at them.
+
+    Every node at location ``u`` is joined to every node at location ``v``, and
+    the nodes sharing a location are joined to each other. The common case by far
+    is one node per location, which is handled without any per-edge work.
+    """
+    order = np.argsort(node_location, kind="stable")
+    starts = np.searchsorted(node_location[order], np.arange(n_locations + 1))
+    members = [order[starts[i] : starts[i + 1]] for i in range(n_locations)]
+    sizes = np.diff(starts)
+
+    simple = (sizes[location_edges[:, 0]] == 1) & (sizes[location_edges[:, 1]] == 1)
+    edges = [
+        np.column_stack(
+            [
+                order[starts[location_edges[simple, 0]]],
+                order[starts[location_edges[simple, 1]]],
+            ]
+        )
+    ]
+
+    for u, v in location_edges[~simple]:
+        left, right = members[u], members[v]
+        edges.append(
+            np.column_stack([np.repeat(left, len(right)), np.tile(right, len(left))])
+        )
+
+    for group in (m for m, size in zip(members, sizes, strict=True) if size > 1):
+        a, b = np.triu_indices(len(group), k=1)
+        edges.append(np.column_stack([group[a], group[b]]))
+
+    stacked = np.sort(np.concatenate(edges), axis=1)
+    return np.unique(stacked, axis=0).astype(np.int64)
 
 
 @dataclass(frozen=True)

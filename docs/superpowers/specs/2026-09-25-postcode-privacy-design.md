@@ -217,9 +217,24 @@ does by using a road network: you can only cross water where a bridge exists. OS
 Roads is OGL and that is the natural v2. The cost is that hop density would then follow
 junction density rather than population.
 
-Because pruning is off, **bridging is not needed either.** The unmodified triangulation
-already connects every point, islands included -- Scilly reaches Cornwall from the
-outset. Bridging exists only to repair what pruning severs, and is enabled with it.
+Because pruning is off, **bridging is not needed either.** The triangulation already
+connects every point, islands included -- Scilly reaches Cornwall from the outset.
+Bridging exists only to repair what pruning severs, and is enabled with it.
+
+### Duplicate centroids
+
+Qhull discards duplicate points. In the August 2026 ONSPD, 57,030 live postcodes share a
+centroid with another -- 3% of the country, the largest group being 1,161 postcodes at a
+single coordinate -- so a naive triangulation leaves every one of them in no simplex,
+with degree zero and infinite distance to everything else. The capped metric then gives
+them back their own true postcode with probability very close to one. The privacy loss is
+total, it affects a twentieth of a million people's records, and nothing errors.
+
+The triangulation is therefore computed over distinct coordinates and lifted back to
+nodes: co-located postcodes are mutually adjacent and share their outside neighbours, so
+they are fully interchangeable. Sharing a centroid means being the same place, and one hop
+is the right distance between them. On real data this raises mean degree from 5.81 to
+9.70 and the edge count from 5.2M to 8.7M, which is affordable.
 
 Restrict nodes to **live postcodes only** (`doterm` empty in ONSPD) — emitting a
 terminated postcode would be an obvious tell.

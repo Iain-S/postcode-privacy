@@ -17,10 +17,20 @@ with nothing in it. Length thresholds cannot do it and neither can Gabriel or
 relative-neighbourhood graphs. The information is not in the data. The real fix is road or
 hydrography data, deferred to a future version.
 
-**Bridging is not needed on the default path.** Raw Delaunay triangulates the convex hull,
-so every point is already connected — an island far offshore included. Bridging exists
-*only* to repair what pruning severs, and is enabled with it. There is a test asserting
-this; do not add bridging to the unpruned path.
+**Bridging is not needed on the default path.** Delaunay triangulates the convex hull, so
+every point is already connected — an island far offshore included. Bridging exists *only*
+to repair what pruning severs, and is enabled with it. There is a test asserting this; do
+not add bridging to the unpruned path.
+
+**Duplicate coordinates are expanded, and this is load-bearing.** Qhull discards duplicate
+points, so a naive triangulation leaves every postcode sharing a centroid in no simplex at
+all — degree zero, infinitely far from everything. Under the capped metric such a node's
+mechanism returns its own true postcode with probability very close to one: a total,
+silent loss of privacy. Real ONSPD data has 57,030 of them, 3% of the country, the largest
+group being 1,161 postcodes at a single point. `delaunay_edges` therefore triangulates
+distinct *coordinates* and lifts the result back to nodes, so co-located postcodes are
+mutually adjacent and share their outside neighbours. Do not simplify this away, and keep
+the invariant tests: zero isolated nodes, one component.
 
 **The radius cap applies to the metric, not the support.** The mechanism uses
 `min(d, R)`, so every postcode in the country keeps nonzero probability and the

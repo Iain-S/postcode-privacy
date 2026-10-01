@@ -36,3 +36,49 @@ def test_an_unpruned_triangulation_is_always_connected(seed: int) -> None:
     )
     n_components, _ = connected_components(adjacency, directed=False)
     assert n_components == 1
+
+
+def duplicated_points() -> tuple[np.ndarray, np.ndarray]:
+    """A small grid where three nodes share one coordinate."""
+    rng = np.random.default_rng(3)
+    base = rng.uniform(0, 100, size=(12, 2))
+    shared = np.repeat(base[[0]], 3, axis=0)
+    points = np.vstack([base, shared])
+    return points[:, 0], points[:, 1]
+
+
+def test_postcodes_sharing_a_coordinate_are_not_isolated() -> None:
+    # Real ONSPD data has 57,030 postcodes sharing a centroid with another, the
+    # largest group being 1,161 at one point. Qhull discards duplicate points, so
+    # a naive triangulation leaves every one of them in no simplex at all --
+    # degree zero, infinitely far from everything. The capped metric then makes
+    # the mechanism return their true postcode with probability ~1, which is a
+    # total and silent loss of privacy for 3% of the country.
+    eastings, northings = duplicated_points()
+
+    edges = delaunay_edges(eastings, northings)
+
+    referenced = np.unique(edges)
+    assert len(referenced) == len(eastings), "every node must have at least one edge"
+
+
+def test_co_located_postcodes_are_adjacent_and_interchangeable() -> None:
+    # Sharing a centroid means being the same place, so co-located postcodes are
+    # one hop apart and have identical neighbours. Without the second property
+    # they would not be substitutable for one another, which is precisely what
+    # the mechanism needs them to be.
+    eastings, northings = duplicated_points()
+    group = [0, 12, 13, 14]  # node 0 and the three copies of its coordinate
+
+    edges = delaunay_edges(eastings, northings)
+
+    neighbours = {node: set() for node in range(len(eastings))}
+    for a, b in edges:
+        neighbours[int(a)].add(int(b))
+        neighbours[int(b)].add(int(a))
+
+    for node in group:
+        assert set(group) - {node} <= neighbours[node], "co-located must be adjacent"
+
+    outside = [set(neighbours[n]) - set(group) for n in group]
+    assert all(o == outside[0] for o in outside), "co-located must share neighbours"
