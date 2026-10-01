@@ -14,12 +14,18 @@ from postcode_privacy.graph.onspd import OnspdSchemaError, read_onspd
 # These are the real ONSPD column names, verified against the August 2026
 # release. Earlier releases used oseast1m/osnrth1m and the fixture encoded
 # that guess, so the suite passed while the reader could not read a real file.
-HEADER = "pcds,doterm,east1m,north1m,lad26cd,oa21cd,lsoa21cd,msoa21cd,ruc21ind"
+HEADER = (
+    "pcds,doterm,east1m,north1m,lad26cd,oa21cd,lsoa21cd,msoa21cd,ruc21ind,usrtypind"
+)
 
 
 def write_onspd(path: Path, rows: list[str]) -> Path:
+    """Write a miniature ONSPD file, defaulting rows to small-user."""
+    filled = [
+        row if row.count(",") == HEADER.count(",") else row + ",0" for row in rows
+    ]
     csv = path / "onspd.csv"
-    csv.write_text("\n".join([HEADER, *rows]) + "\n")
+    csv.write_text("\n".join([HEADER, *filled]) + "\n")
     return csv
 
 
@@ -179,3 +185,23 @@ def test_coordinates_outside_the_national_grid_are_excluded(
 
     assert list(table.postcodes) == ["LS2 9JT"]
     assert table.dropped["outside_national_grid"] == 1
+
+
+def test_large_user_postcodes_are_excluded_but_remembered(tmp_path: Path) -> None:
+    # Large-user postcodes belong to a single organisation and have no resident
+    # population, so they are never emitted. They are kept aside rather than
+    # forgotten, so that a caller submitting one can be told what it is instead
+    # of being told it does not exist.
+    csv = write_onspd(
+        tmp_path,
+        [
+            "LS2 9JT,,429774,433888,E08000035,E00057834,E01011364,E02002393,A1,0",
+            "LS1 4AP,,429500,433500,E08000035,E00057835,E01011365,E02002394,A1,1",
+        ],
+    )
+
+    table = read_onspd(csv)
+
+    assert list(table.postcodes) == ["LS2 9JT"]
+    assert list(table.large_user) == ["LS1 4AP"]
+    assert table.dropped["large_user"] == 1

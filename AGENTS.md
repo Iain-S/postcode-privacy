@@ -28,6 +28,23 @@ condition under which the mechanism hands back the secret — whatever produced 
 Duplicate centroids were one cause; the next will be something else. Do not weaken this
 to a warning.
 
+**Large-user postcodes are not nodes.** Royal Mail classes a postcode as "large user"
+when it belongs to a single organisation receiving high mail volumes. Those have no
+resident population to hide anyone among, so they are excluded from the graph entirely
+(4.0% of live postcodes, 72,056 of them) and can never be emitted. They are *remembered*
+in `PostcodeGraph.excluded` so that submitting one raises `LargeUserPostcodeError` with an
+explanation, rather than `UnknownPostcodeError`, which would be true but useless for a
+postcode that plainly exists. The excluded list travels in the artefact; without it a
+reloaded graph gives the wrong error.
+
+Excluding them also dissolved the worst co-located groups: the five largest clusters of
+postcodes sharing one coordinate were ~100% large-user (1,161 of 1,161 at one central
+London point).
+
+**Known caveat, not yet resolved:** some large-user postcodes are university halls,
+hospitals and prisons, where people genuinely do live and may be registered. Those
+records now error rather than being perturbed.
+
 **Duplicate coordinates are expanded, and this is load-bearing.** Qhull discards duplicate
 points, so a naive triangulation leaves every postcode sharing a centroid in no simplex at
 all — degree zero, infinitely far from everything. Under the capped metric such a node's

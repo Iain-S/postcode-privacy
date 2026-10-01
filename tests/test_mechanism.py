@@ -4,7 +4,10 @@ import numpy as np
 import pytest
 
 from postcode_privacy import HopMechanism, Key, PostcodeGraph
-from postcode_privacy.postcodes import UnknownPostcodeError
+from postcode_privacy.postcodes import (
+    LargeUserPostcodeError,
+    UnknownPostcodeError,
+)
 
 # A ring of six postcodes, so every node has the same local structure.
 RING_EDGES = np.array([[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [0, 5]], dtype=np.int64)
@@ -160,3 +163,46 @@ def test_a_radius_smaller_than_the_derived_one_misses_the_target() -> None:
     too_small = HopMechanism(graph, epsilon=1.0, radius=derived // 2)
 
     assert too_small.distribution(str(graph.postcodes[100])).teleport_probability > 1e-6
+
+
+def ring_with_a_business_postcode() -> PostcodeGraph:
+    return PostcodeGraph.from_edges(
+        postcodes=np.array(RING_POSTCODES),
+        edges=RING_EDGES,
+        prior=np.ones(6, dtype=np.int64),
+        excluded=np.array(["ZZ9 9ZZ"]),
+    )
+
+
+def test_a_large_user_postcode_is_rejected_with_an_explanation() -> None:
+    # "Unknown postcode" would be true but useless: it is a real postcode, and
+    # the caller needs to know why it cannot be used.
+    mechanism = HopMechanism(ring_with_a_business_postcode(), epsilon=1.0)
+
+    with pytest.raises(LargeUserPostcodeError) as excinfo:
+        mechanism.perturb("ZZ9 9ZZ", subject_id="p1", key=Key.generate())
+
+    message = str(excinfo.value)
+    assert "ZZ9 9ZZ" in message
+    assert "large user" in message.lower()
+    assert "organisation" in message.lower()
+
+
+def test_a_genuinely_unknown_postcode_still_reports_as_unknown() -> None:
+    mechanism = HopMechanism(ring_with_a_business_postcode(), epsilon=1.0)
+
+    with pytest.raises(UnknownPostcodeError):
+        mechanism.perturb("YY8 8YY", subject_id="p1", key=Key.generate())
+
+
+def test_no_output_is_ever_a_large_user_postcode() -> None:
+    # The whole point: a business postcode has no residents to hide anyone
+    # among, so it must never be emitted.
+    mechanism = HopMechanism(ring_with_a_business_postcode(), epsilon=0.2)
+    key = Key.from_bytes(b"\x03" * 32)
+
+    outputs = {
+        mechanism.perturb("AA1 1AA", subject_id=f"p{i}", key=key) for i in range(200)
+    }
+
+    assert outputs <= set(RING_POSTCODES)

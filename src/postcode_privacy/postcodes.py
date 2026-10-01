@@ -15,6 +15,18 @@ class InvalidPostcodeError(ValueError):
     """Raised when a string cannot be a UK postcode."""
 
 
+class LargeUserPostcodeError(KeyError):
+    """Raised when a postcode exists but belongs to a single organisation.
+
+    Distinct from "unknown" on purpose. The postcode is real, and the caller
+    needs to know why it cannot be used rather than being told it does not
+    exist.
+    """
+
+    def __str__(self) -> str:
+        return str(self.args[0]) if self.args else ""
+
+
 class UnknownPostcodeError(KeyError):
     """Raised when a postcode is well-formed but absent from the graph."""
 

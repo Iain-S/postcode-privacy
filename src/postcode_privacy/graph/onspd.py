@@ -24,6 +24,12 @@ POSTCODE_COLUMN = "pcds"
 TERMINATION_COLUMN = "doterm"
 EASTING_COLUMN = "east1m"
 NORTHING_COLUMN = "north1m"
+USER_TYPE_COLUMN = "usrtypind"
+
+# Royal Mail classes a postcode as "large user" when it belongs to a single
+# organisation receiving a high volume of mail. Such a postcode has no
+# resident population to hide anyone among, so it is never a valid output.
+LARGE_USER = "1"
 
 # The OSGB36 national grid. Real postcode extremes sit comfortably inside it:
 # the Isles of Scilly, Shetland, Barra and Lowestoft are the four corners. A
@@ -39,6 +45,7 @@ REQUIRED_COLUMNS = (
     TERMINATION_COLUMN,
     EASTING_COLUMN,
     NORTHING_COLUMN,
+    USER_TYPE_COLUMN,
 )
 
 
@@ -57,6 +64,7 @@ class OnspdTable:
     postcodes: npt.NDArray[np.str_]
     eastings: npt.NDArray[np.int64]
     northings: npt.NDArray[np.int64]
+    large_user: npt.NDArray[np.str_]
     n_rows_read: int
     dropped: dict[str, int]
 
@@ -72,6 +80,7 @@ def read_onspd(path: Path, *, gb_only: bool = False) -> OnspdTable:
         redistributed, so artefacts intended for sharing must be built this way.
     """
     rows: list[tuple[str, int, int]] = []
+    large_user: list[str] = []
     dropped: dict[str, int] = {}
     n_rows_read = 0
 
@@ -92,6 +101,12 @@ def read_onspd(path: Path, *, gb_only: bool = False) -> OnspdTable:
             if gb_only and postcode.startswith(NORTHERN_IRELAND_PREFIX):
                 drop("northern_ireland")
                 continue
+            if row[USER_TYPE_COLUMN].strip() == LARGE_USER:
+                # Kept aside rather than forgotten, so a caller who submits one
+                # can be told what it is instead of that it does not exist.
+                large_user.append(postcode)
+                drop("large_user")
+                continue
             easting = row[EASTING_COLUMN].strip()
             northing = row[NORTHING_COLUMN].strip()
             if not easting or not northing:
@@ -110,6 +125,7 @@ def read_onspd(path: Path, *, gb_only: bool = False) -> OnspdTable:
         postcodes=np.array(postcodes, dtype=np.str_),
         eastings=np.array(eastings, dtype=np.int64),
         northings=np.array(northings, dtype=np.int64),
+        large_user=np.array(sorted(large_user), dtype=np.str_),
         n_rows_read=n_rows_read,
         dropped=dropped,
     )
