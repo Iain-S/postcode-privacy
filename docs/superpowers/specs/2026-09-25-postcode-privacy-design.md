@@ -5,7 +5,9 @@ Status: accepted, 2026-09-25. Implementation sequencing lives in `todo.md`.
 ## Context
 
 There is no open library that applies differential privacy to UK postcodes, and the
-ad-hoc alternatives are bad. Analysts who need to share person-level data either drop
+ad-hoc alternatives are bad. (The *method* used here is published work — see Prior art
+below and `docs/references.md`; what is missing is a usable implementation for UK
+geography.) Analysts who need to share person-level data either drop
 the postcode entirely (destroying geographic analysis), truncate it to the outward code
 (no formal guarantee, wildly uneven protection), or round coordinates (trivially
 invertible). Meanwhile off-the-shelf geo-privacy tools assume locations are points on a
@@ -15,9 +17,11 @@ block and a Highland glen. Metric privacy measured in metres therefore gives a G
 resident strong protection and a Sutherland resident almost none, while claiming the
 same ε for both.
 
-This library takes the other route. It builds a **graph of UK postcodes**, where nodes
-are postcode units and edges join geographic neighbours, and measures privacy in
-**hops** rather than metres. Density adaptation then comes for free: three hops is
+This library takes the other route, following Takagi et al.'s
+**Geo-Graph-Indistinguishability** — metric DP over shortest-path distance on a graph
+rather than over the plane. It builds a **graph of UK postcodes**, where nodes are
+postcode units and edges join geographic neighbours, and measures privacy in **hops**
+rather than metres. Density adaptation then comes for free: three hops is
 ~200 m in central Leeds and ~6 km on Bodmin Moor, which is the correct behaviour,
 because the privacy question is "how many other people could I be?", not "how many
 metres away am I?".
@@ -34,7 +38,7 @@ of scope and is a separate project.
 | Guarantee | Metric DP with graph-hop distance |
 | Repeat releases | Keyed-deterministic per subject (same person → same output, always) |
 | Deliverable | pip-installable Python library + CLI |
-| Disconnected components | Bridge edges — sea crossings cost one hop |
+| Pruning and bridging | Off by default; raw triangulation is already connected |
 | Mechanism prior | Population-weighted by default, `prior="uniform"` switchable |
 | v1 rigour | Adversary/attack suite **and** a written methods note with proofs |
 
@@ -44,7 +48,8 @@ of scope and is a separate project.
 
 Metric differential privacy over a graph is **not novel**, and the design should cite
 rather than claim it. **Geo-Graph-Indistinguishability** (Takagi, Cao, Yoshikawa et al.,
-arXiv:2010.13449) defines exactly this notion over road networks and gives the
+arXiv:2010.13449; DBSec 2019), by Shun Takagi, Yang Cao, Yasuhito Asano and Masatoshi
+Yoshikawa, defines exactly this notion over road networks and gives the
 Graph-Exponential Mechanism for it. Their motivation is the strongest available argument
 for using a graph at all: Euclidean geo-indistinguishability *overstates* the privacy it
 delivers, because a real adversary knows the network and discounts outputs that are not

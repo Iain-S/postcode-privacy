@@ -16,6 +16,21 @@ Postcode units are joined into a graph where edges link geographic neighbours, s
 **Status: pre-alpha.** Nothing here is usable yet. See `docs/methods.md` for the formal
 statement and proofs, and `docs/superpowers/specs/` for the design of record.
 
+## Credit
+
+The central idea here is not ours. Measuring metric differential privacy by
+shortest-path distance on a graph, rather than by Euclidean distance, is
+**Geo-Graph-Indistinguishability**, due to Shun Takagi, Yang Cao, Yasuhito Asano and
+Masatoshi Yoshikawa ([arXiv:2010.13449](https://arxiv.org/abs/2010.13449); DBSec 2019),
+who also give the Graph-Exponential Mechanism. It rests in turn on metric differential
+privacy (Chatzikokolakis et al., PETS 2013) and geo-indistinguishability (Andrés et al.,
+CCS 2013).
+
+What this library adds is narrow: UK postcode units as the secret space, a
+population-weighted prior, an exactly-computable capped metric, keyed-deterministic
+perturbation, and integer weights. In one sentence, it is **GG-I applied to UK
+postcodes**. Full attribution is in [`docs/references.md`](docs/references.md).
+
 ## Data and licensing
 
 This package **ships no postcode data**. You build a graph artefact from your own copy
