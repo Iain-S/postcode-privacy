@@ -37,7 +37,7 @@ from postcode_privacy.evaluate.utility import (
 )
 from postcode_privacy.fetch import fetch_onspd
 from postcode_privacy.graph.artefact import load_graph, save_graph
-from postcode_privacy.graph.build import assemble
+from postcode_privacy.graph.build import DEFAULT_MAX_EDGE_KM, assemble
 from postcode_privacy.graph.onspd import read_onspd
 from postcode_privacy.graph.postcode_graph import PostcodeGraph
 from postcode_privacy.graph.prior import population_prior
@@ -359,6 +359,14 @@ def _sha256(path: Path) -> str:
     help="Exclude Northern Ireland, whose records may not be redistributed.",
 )
 @click.option(
+    "--max-edge-km",
+    type=float,
+    default=DEFAULT_MAX_EDGE_KM,
+    show_default=True,
+    help="Cut edges longer than this. An absolute claim about what adjacency "
+    "can mean, not a density judgement; pass 0 to disable.",
+)
+@click.option(
     "--prune-alpha",
     type=float,
     default=None,
@@ -373,9 +381,11 @@ def build(
     postcode_populations: tuple[Path, ...],
     uniform_prior: bool,
     gb_only: bool,
+    max_edge_km: float,
     prune_alpha: float | None,
 ) -> None:
     """Build a postcode graph artefact from ONSPD."""
+    cutoff = max_edge_km if max_edge_km > 0 else None
     if fetch and onspd is not None:
         raise click.UsageError("give either --onspd PATH or --fetch, not both.")
     if not fetch and onspd is None:
@@ -435,7 +445,12 @@ def build(
             err=True,
         )
 
-    assembled = assemble(table.eastings, table.northings, prune_alpha=prune_alpha)
+    assembled = assemble(
+        table.eastings,
+        table.northings,
+        max_edge_km=cutoff,
+        prune_alpha=prune_alpha,
+    )
     graph = PostcodeGraph.from_edges(
         postcodes=table.postcodes,
         edges=assembled.edges,
@@ -446,7 +461,8 @@ def build(
     )
     degree = np.bincount(assembled.edges.ravel(), minlength=graph.n_nodes)
     click.echo(
-        f"graph: {len(assembled.edges):,} edges, mean degree {degree.mean():.2f}",
+        f"graph: {len(assembled.edges):,} edges, mean degree {degree.mean():.2f}"
+        + (f", {len(assembled.cut):,} cut over {cutoff:g} km" if cutoff else ""),
         err=True,
     )
 
@@ -454,6 +470,7 @@ def build(
         source=onspd.name,
         source_sha256=_sha256(onspd),
         gb_only=gb_only,
+        max_edge_km=cutoff,
         prune_alpha=prune_alpha,
         library_version=version("postcode-privacy"),
     )
@@ -466,6 +483,8 @@ def build(
         "rows_read": table.n_rows_read,
         "dropped": table.dropped,
         "large_user_excluded": len(table.large_user),
+        "cut_edges": len(assembled.cut),
+        "max_edge_km": cutoff,
         "pruned_edges": len(assembled.pruned),
         "bridges": len(assembled.bridges),
         "prior": (

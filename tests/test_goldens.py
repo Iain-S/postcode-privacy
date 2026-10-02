@@ -116,6 +116,7 @@ def test_saving_and_reloading_the_graph_changes_no_output(tmp_path) -> None:
         source="fixture",
         source_sha256="0" * 64,
         gb_only=False,
+        max_edge_km=None,
         prune_alpha=None,
         library_version="test",
     )

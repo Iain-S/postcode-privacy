@@ -6,7 +6,9 @@ from dataclasses import dataclass, field
 
 # Bumped whenever the stored layout changes in a way that would make an older
 # artefact load incorrectly rather than fail.
-SCHEMA_VERSION = 1
+# 2: provenance records max_edge_km. Artefacts written before it were built
+# without the absolute edge cut, so they cannot be read as though they had it.
+SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -20,6 +22,7 @@ class Provenance:
     source: str
     source_sha256: str
     gb_only: bool
+    max_edge_km: float | None
     prune_alpha: float | None
     library_version: str
     schema_version: int = field(default=SCHEMA_VERSION)

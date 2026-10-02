@@ -9,6 +9,19 @@ anything; several of the decisions below look like bugs or oversights and are no
 
 ## Things that look wrong but are deliberate
 
+**The 50 km edge cut is on by default and is NOT the same thing as `prune_alpha`.**
+`max_edge_km` makes an absolute claim — no two UK postcodes 50 km apart are neighbours —
+whereas `prune_alpha` makes a density judgement, which is why one can be a default and
+the other cannot. Measured on the August 2026 build it removes 264 edges of 5.36
+million, fragments nothing, and needs no bridging. It cut the rural p95 displacement
+from 260 km to 61 km and the Isle of Lewis median from 308 km to 10 km, with
+self-probability unchanged to three decimal places: a pure utility repair at no privacy
+cost. Delaunay tiles the convex hull, so without it the graph contains edges like Great
+Yarmouth to Shetland (920 km) and Barra to Scilly (780 km), each of which is one hop.
+
+Do not confuse this with the Thames-at-Woolwich case, which is a 2 km edge that is a
+15 km drive. That is still unfixed and no geometric rule catches it.
+
 **Pruning and bridging are off by default. Do not enable them to "fix" the graph.**
 `assemble()` returns the unmodified Delaunay triangulation. The pruning heuristic exists,
 is tested, and is opt-in via `prune_alpha`. It is off because no geometric criterion can

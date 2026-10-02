@@ -38,6 +38,7 @@ def a_provenance() -> Provenance:
         source="ONSPD_AUG_2026_UK.csv",
         source_sha256="ab51f1e8" * 8,
         gb_only=False,
+        max_edge_km=None,
         prune_alpha=None,
         library_version="0.1.0.dev0",
     )
@@ -94,7 +95,8 @@ def test_an_artefact_from_another_schema_is_rejected(tmp_path: Path) -> None:
     contents = dict(np.load(path, allow_pickle=False))
     contents["metadata"] = np.array(
         '{"schema_version": 999, "source": "x", "source_sha256": "y", '
-        '"gb_only": false, "prune_alpha": null, "library_version": "z"}'
+        '"gb_only": false, "max_edge_km": null, "prune_alpha": null, '
+        '"library_version": "z"}'
     )
     # Through a handle: savez appends ".npz" to a bare path.
     with path.open("wb") as handle:

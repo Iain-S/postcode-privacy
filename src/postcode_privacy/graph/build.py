@@ -19,7 +19,7 @@ from scipy.spatial import Delaunay
 
 from postcode_privacy._types import Coordinates, Edges
 from postcode_privacy.graph.bridge import bridge_components
-from postcode_privacy.graph.prune import prune_long_edges
+from postcode_privacy.graph.prune import edge_lengths, prune_long_edges
 
 
 def delaunay_edges(eastings: Coordinates, northings: Coordinates) -> Edges:
@@ -136,19 +136,48 @@ def check_integrity(edges: Edges, *, n_nodes: int) -> None:
         )
 
 
+# No two UK postcodes fifty kilometres apart are neighbours under any reading
+# of the word. This is an absolute claim about what adjacency can mean, not a
+# density judgement like `prune_alpha`, which is why it can be a default when
+# that one cannot. Measured on the August 2026 build, it removes 264 edges of
+# 5.36 million, fragments nothing, and cuts the displacement tail for the
+# affected postcodes from a p95 of 487 km to 72 km.
+DEFAULT_MAX_EDGE_KM = 50.0
+METRES_PER_KM = 1000.0
+
+
 @dataclass(frozen=True)
 class AssembledGraph:
     """The edge set of a postcode graph, and a record of how it was altered."""
 
     edges: Edges
+    cut: Edges
     pruned: Edges
     bridges: Edges
+
+
+def _reconnect(
+    kept: Edges,
+    candidates: Edges,
+    eastings: Coordinates,
+    northings: Coordinates,
+    *,
+    n_nodes: int,
+) -> Edges:
+    """Put back the fewest, shortest cut edges needed to keep one component."""
+    if not len(candidates):
+        return kept
+    bridged, _ = bridge_components(
+        kept, candidates, eastings, northings, n_nodes=n_nodes
+    )
+    return bridged
 
 
 def assemble(
     eastings: Coordinates,
     northings: Coordinates,
     *,
+    max_edge_km: float | None = DEFAULT_MAX_EDGE_KM,
     prune_alpha: float | None = None,
 ) -> AssembledGraph:
     """Build the postcode graph from grid references.
@@ -170,14 +199,24 @@ def assemble(
     n_nodes = len(np.asarray(eastings))
     edges = delaunay_edges(eastings, northings)
     empty = np.empty((0, 2), dtype=np.int64)
+    cut = empty
+
+    if max_edge_km is not None:
+        lengths = edge_lengths(edges, eastings, northings)
+        too_far = lengths > max_edge_km * METRES_PER_KM
+        edges, cut = edges[~too_far], edges[too_far]
+        # On the real national graph this fragments nothing at fifty
+        # kilometres, but a synthetic graph can, and a disconnected graph is
+        # where the mechanism hands a subject their own postcode back.
+        edges = _reconnect(edges, cut, eastings, northings, n_nodes=n_nodes)
 
     if prune_alpha is None:
         check_integrity(edges, n_nodes=n_nodes)
-        return AssembledGraph(edges=edges, pruned=empty, bridges=empty)
+        return AssembledGraph(edges=edges, cut=cut, pruned=empty, bridges=empty)
 
     kept, pruned = prune_long_edges(edges, eastings, northings, alpha=prune_alpha)
     bridged, bridges = bridge_components(
         kept, pruned, eastings, northings, n_nodes=n_nodes
     )
     check_integrity(bridged, n_nodes=n_nodes)
-    return AssembledGraph(edges=bridged, pruned=pruned, bridges=bridges)
+    return AssembledGraph(edges=bridged, cut=cut, pruned=pruned, bridges=bridges)

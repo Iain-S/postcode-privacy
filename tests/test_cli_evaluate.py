@@ -30,6 +30,7 @@ def bigger_artefact(tmp_path: Path) -> Path:
             source="ONSPD_TEST",
             source_sha256="b" * 64,
             gb_only=True,
+            max_edge_km=None,
             prune_alpha=None,
             library_version="0.0.0",
         ),
