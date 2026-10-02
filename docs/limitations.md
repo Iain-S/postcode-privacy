@@ -35,7 +35,7 @@ changes the threshold; `--max-edge-km 0` disables it.
 |---|---|---|
 | rural p95 displacement | 260.3 km | **60.7 km** |
 | urban p95 displacement | 9.9 km | 9.8 km |
-| rural self-probability | 2.204% | 2.204% |
+| rural self-probability | unchanged | unchanged |
 | Isle of Lewis, median | 307.9 km | **10.0 km** |
 
 Self-probability is unchanged to three decimal places, so the privacy the mechanism
@@ -80,10 +80,13 @@ build of 1,725,511 nodes:
 | urban | 0.49 km | 9.81 km | 28.9% | 2.269% |
 | rural | 2.62 km | 60.74 km | 27.0% | 2.204% |
 
-Read the last column first, because it is the design working. A postcode is handed back
-unchanged about as often in Sutherland as in Leeds, across a four-order-of-magnitude
-difference in how much ground a postcode covers. That is the claim the hop metric
-exists to make, and it is measured rather than argued.
+The self-probability column is a sample of 25 per group and should not be read as a
+precise ratio; a larger measurement of 150 per group puts the urban median at 2.541%
+against a rural 1.937%, a difference of 1.31×, with a roughly fivefold spread *within*
+each group. The point stands and is the design working — a postcode is handed back
+about as often in Sutherland as in Leeds, across a four-order-of-magnitude difference
+in how much ground a postcode covers — but the honest form of it is a distribution, not
+a single ratio. See [Why not just truncate?](why-not-truncation.md).
 
 The remaining rural spread in kilometres is the intended consequence: where there are
 few postcodes nearby, the nearest ones genuinely are far away.

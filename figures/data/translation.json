@@ -1,0 +1,103 @@
+{
+  "per_group": 15,
+  "seed": 0,
+  "graph": {
+    "source": "ONSPD_AUG_2026_UK.csv",
+    "source_sha256": "dcd2947a52aec97d49856411755caa8e5e6d32ef24ea929025587432ebfeba77",
+    "gb_only": false,
+    "max_edge_km": 50.0,
+    "prune_alpha": null,
+    "library_version": "0.1.0.dev0",
+    "schema_version": 2
+  },
+  "runs": [
+    {
+      "epsilon": 0.3,
+      "radius": 200,
+      "groups": {
+        "urban": {
+          "group": "urban",
+          "count": 15,
+          "median_km": 2.5994033930884988,
+          "p95_km": 152.88599418246864,
+          "area_preserved": 0.029332471776563594,
+          "median_self_probability": 0.0014940764684193144
+        },
+        "rural": {
+          "group": "rural",
+          "count": 15,
+          "median_km": 23.242037776408505,
+          "p95_km": 272.8593915010755,
+          "area_preserved": 0.017257112462588466,
+          "median_self_probability": 0.00028339814086770235
+        }
+      }
+    },
+    {
+      "epsilon": 0.5,
+      "radius": 122,
+      "groups": {
+        "urban": {
+          "group": "urban",
+          "count": 15,
+          "median_km": 1.4874034422442353,
+          "p95_km": 108.51800153680043,
+          "area_preserved": 0.08840951864988426,
+          "median_self_probability": 0.004761761518234519
+        },
+        "rural": {
+          "group": "rural",
+          "count": 15,
+          "median_km": 10.221592146040654,
+          "p95_km": 167.67303463487985,
+          "area_preserved": 0.04800883692757471,
+          "median_self_probability": 0.0014562572174287864
+        }
+      }
+    },
+    {
+      "epsilon": 1.0,
+      "radius": 62,
+      "groups": {
+        "urban": {
+          "group": "urban",
+          "count": 15,
+          "median_km": 0.48120266000927303,
+          "p95_km": 50.02580941113524,
+          "area_preserved": 0.24664320680934532,
+          "median_self_probability": 0.023420106164423627
+        },
+        "rural": {
+          "group": "rural",
+          "count": 15,
+          "median_km": 4.312787149860285,
+          "p95_km": 79.98221659496197,
+          "area_preserved": 0.16380372494605347,
+          "median_self_probability": 0.010900577402799387
+        }
+      }
+    },
+    {
+      "epsilon": 2.0,
+      "radius": 32,
+      "groups": {
+        "urban": {
+          "group": "urban",
+          "count": 15,
+          "median_km": 0.20867678356731495,
+          "p95_km": 1.7856746752984025,
+          "area_preserved": 0.5477669360401174,
+          "median_self_probability": 0.11148420237988255
+        },
+        "rural": {
+          "group": "rural",
+          "count": 15,
+          "median_km": 1.9528036255599281,
+          "p95_km": 34.768623530853425,
+          "area_preserved": 0.43687630489818147,
+          "median_self_probability": 0.07372151464764333
+        }
+      }
+    }
+  ]
+}

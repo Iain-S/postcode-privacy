@@ -64,14 +64,29 @@ Measuring privacy in hops attacks this directly: a hop is a step to a neighbouri
 postcode, and postcode units are roughly equally sized by construction, so a hop covers
 a comparable number of people wherever you are. Measured at \(\varepsilon = 1\):
 
-| | urban | rural | ratio |
-|---|---|---|---|
-| self-probability | 2.269% | 2.204% | **1.03×** |
-| truncation crowd (p1 → p99) | — | — | 764× |
+Self-probability — the chance the true postcode is handed back unchanged — measured
+over 150 sampled postcodes per group:
 
-Exposure varies by 3%. Truncation's varies by a factor of several hundred. That
-comparison is the case for this library, and it is measured on both sides rather than
-argued.
+| | p10 | median | p90 |
+|---|---|---|---|
+| urban | 0.911% | 2.541% | 4.261% |
+| rural | 0.606% | 1.937% | 4.058% |
+
+The medians differ by **1.31×**. More telling is that the spread *within* each group,
+roughly fivefold from the tenth to the ninetieth percentile, is larger than the
+difference *between* them — exposure depends more on your particular surroundings than
+on whether those surroundings are a city or a glen.
+
+Set that beside truncation's **764×** between the first and ninety-ninth percentile, and
+its nine districts where a truncated postcode discloses the exact unit. Both sides are
+measured.
+
+!!! warning "A correction"
+    An earlier version of this page gave the ratio as 1.03×, from a sample of 25
+    postcodes per group. A second sample of 15 gave 2.1×. Two draws disagreeing that
+    much meant the point estimate was never trustworthy, and it should not have been
+    promoted to a headline on the strength of one sample. The figures above come from
+    150 per group and are reported as a distribution for that reason.
 
 The displacement in metres varies enormously — 0.49 km median urban against 2.62 km
 rural — and that is the intended consequence, not a defect.

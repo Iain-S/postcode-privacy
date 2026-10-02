@@ -98,7 +98,8 @@ def build_figure(theme: Theme) -> None:
         -0.06,
         f"All {len(people):,} outward-code districts in the August 2026 build. "
         "1st percentile 101 residents, 99th 77,018.\nAgainst this, the "
-        "mechanism's self-probability varies 1.03x between urban and rural.",
+        "mechanism's self-probability differs 1.31x between urban and rural "
+        "medians.",
         ha="center",
         color=theme.secondary,
         fontsize=9,

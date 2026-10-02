@@ -174,6 +174,22 @@ probability beside it. Combining them would hide a radius that is too small, bec
 handful of country-wide jumps would drag the average up and look like ordinary local
 spread.
 
+### What epsilon buys, measured
+
+Over 15 sampled postcodes per group on the August 2026 build:
+
+| ε | radius | urban median | same LSOA | rural median | same LSOA |
+|---|---|---|---|---|---|
+| 0.3 | 200 hops | 2.60 km | 2.9% | 23.24 km | 1.7% |
+| 0.5 | 122 hops | 1.49 km | 8.8% | 10.22 km | 4.8% |
+| 1.0 | 62 hops | 0.48 km | 24.7% | 4.31 km | 16.4% |
+| 2.0 | 32 hops | 0.21 km | 54.8% | 1.95 km | 43.7% |
+
+"Same LSOA" is the share of output probability that stays in the true postcode's census
+output area — the practical question of whether you can still count people by geography.
+At \(\varepsilon = 0.3\) almost none of it does, which is the number to weigh before
+choosing a small \(\varepsilon\) for safety's sake.
+
 !!! note "Calibration is slow, deliberately"
     Solving a displacement target costs roughly eighteen seconds per sampled postcode
     on a national graph, because every candidate \(\varepsilon\) implies a different
