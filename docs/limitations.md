@@ -24,6 +24,11 @@ rather than a density judgement. Measured on the August 2026 build it removes 26
 of 5.36 million, fragments the graph not at all, and needs no bridging. `--max-edge-km`
 changes the threshold; `--max-edge-km 0` disables it.
 
+![Every Delaunay edge longer than 50 km, drawn across the seas around Britain](figures/wormholes-light.png#only-light){ loading=lazy }
+![Every Delaunay edge longer than 50 km, drawn across the seas around Britain](figures/wormholes-dark.png#only-dark){ loading=lazy }
+
+<figcaption markdown>Every edge longer than fifty kilometres, and two island groups as they stand once those edges are gone.</figcaption>
+
 ### What it cost and what it bought
 
 | | before | after |

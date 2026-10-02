@@ -28,6 +28,11 @@ Rounding coordinates is trivially invertible. Truncating to the outward code has
 formal guarantee at all, and its protection is wildly uneven in exactly the way described
 above — see [Why not just truncate?](why-not-truncation.md).
 
+![Relief map of Great Britain beside a map of residents per 5 km cell](figures/density-light.png#only-light){ loading=lazy }
+![Relief map of Great Britain beside a map of residents per 5 km cell](figures/density-dark.png#only-dark){ loading=lazy }
+
+<figcaption markdown>Population is as uneven as the ground it sits on. Any method that treats every postcode alike is treating these two maps as though they were flat.</figcaption>
+
 ## The approach
 
 Postcode units become the nodes of a graph, with edges joining geographic neighbours.

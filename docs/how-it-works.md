@@ -12,6 +12,11 @@ mean degree is about six regardless of local density, and that density independe
 the property everything else rests on: one hop means roughly the same thing in a city as
 in a glen, even though it means wildly different numbers of metres.
 
+![Hop distance from a Leeds postcode and from a Sutherland postcode](figures/hops-light.png#only-light){ loading=lazy }
+![Hop distance from a Leeds postcode and from a Sutherland postcode](figures/hops-dark.png#only-dark){ loading=lazy }
+
+<figcaption markdown>Six hops spans two kilometres in Leeds and a hundred and sixty in Sutherland. The number of people within reach is comparable; the number of metres is not. That is the whole design.</figcaption>
+
 ## The guarantee
 
 Let \(d(x, y)\) be shortest-path hop distance, and let \(\tilde{d}(x,y) = \min(d(x,y), R)\)

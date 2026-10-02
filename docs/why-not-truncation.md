@@ -39,6 +39,9 @@ between the extremes. The same operation is applied to everyone and the protecti
 delivered differs by nearly five orders of magnitude, with no way to measure the
 difference from the released value, let alone control it.
 
+![Histogram of residents per outward-code district on a log scale](figures/districts-light.svg#only-light){ loading=lazy }
+![Histogram of residents per outward-code district on a log scale](figures/districts-dark.svg#only-dark){ loading=lazy }
+
 ### For nine districts, truncation does nothing at all
 
 Nine outward codes contain exactly one postcode: `PA62`, `PA63`, `PA74`, `PH30`, `PH42`,
