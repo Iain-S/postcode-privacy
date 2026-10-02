@@ -144,3 +144,20 @@ def summarise_by_group(
         )
         for group, rows in collected.items()
     }
+
+
+# England and Wales use ONS 2021 codes prefixed U or R; Scotland uses the
+# Scottish Government's numeric classification, where 1 and 2 are urban;
+# Northern Ireland carries no indicator at all. Harmonising three schemes into
+# two words is necessarily coarse, and cross-national comparisons drawn from it
+# are not like-for-like.
+UNCLASSIFIED = "unclassified"
+
+
+def urban_or_rural(indicator: str, country: str) -> str:
+    """A coarse urban/rural class, harmonised across the three nations."""
+    if not indicator or country.startswith("N"):
+        return UNCLASSIFIED
+    if indicator[0].isdigit():
+        return "urban" if indicator[0] in "12" else "rural"
+    return "urban" if indicator.startswith("U") else "rural"

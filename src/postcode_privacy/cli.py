@@ -29,6 +29,12 @@ from pathlib import Path
 import click
 import numpy as np
 
+from postcode_privacy.evaluate.utility import (
+    UNCLASSIFIED,
+    aligned_columns,
+    summarise_by_group,
+    urban_or_rural,
+)
 from postcode_privacy.fetch import fetch_onspd
 from postcode_privacy.graph.artefact import load_graph, save_graph
 from postcode_privacy.graph.build import assemble
@@ -625,3 +631,97 @@ def calibrate_command(
         "  varies by location, so check --sample on your own population."
     )
     click.echo(json.dumps(payload, indent=2) if as_json else text)
+
+
+@main.command()
+@inline_key_option
+@click.option(
+    "--graph",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
+@click.option(
+    "--onspd",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="ONSPD, for the area codes and rural-urban indicator.",
+)
+@click.option("--epsilon", required=True, type=float)
+@click.option("--per-group", type=int, default=25, show_default=True)
+@click.option("--seed", type=int, default=0, show_default=True)
+@click.option("--json", "as_json", is_flag=True)
+def evaluate(
+    graph: Path,
+    onspd: Path,
+    epsilon: float,
+    per_group: int,
+    seed: int,
+    as_json: bool,
+) -> None:
+    """Measure utility by urban/rural group, for the documentation figures."""
+    loaded = load_graph(graph)
+    click.echo(f"reading area codes from {onspd}", err=True)
+    columns = aligned_columns(
+        onspd, loaded.postcodes, ["ruc21ind", "ctry26cd", "lsoa21cd"]
+    )
+    groups = np.array(
+        [
+            urban_or_rural(indicator, country)
+            for indicator, country in zip(
+                columns["ruc21ind"].tolist(), columns["ctry26cd"].tolist(), strict=True
+            )
+        ]
+    )
+
+    rng = np.random.default_rng(seed)
+    chosen: list[str] = []
+    shortfalls: list[str] = []
+    for group in sorted(set(groups.tolist())):
+        if group == UNCLASSIFIED:
+            continue
+        pool = np.flatnonzero(groups == group)
+        size = min(per_group, len(pool))
+        if size < per_group:
+            # Said out loud: silently sampling fewer would leave two runs
+            # incomparable with nothing explaining why.
+            shortfalls.append(f"{group}: requested {per_group}, sampled {size}")
+        chosen += [
+            str(loaded.postcodes[index])
+            for index in rng.choice(pool, size=size, replace=False)
+        ]
+
+    mechanism = HopMechanism(loaded, epsilon=epsilon)
+    summaries = summarise_by_group(
+        mechanism, chosen, areas=columns["lsoa21cd"], groups=groups
+    )
+
+    payload = {
+        "epsilon": epsilon,
+        "radius": mechanism.radius,
+        "per_group": per_group,
+        "seed": seed,
+        "shortfalls": shortfalls,
+        "groups": {name: asdict(row) for name, row in sorted(summaries.items())},
+        "graph": asdict(loaded.provenance) if loaded.provenance else {},
+    }
+    if as_json:
+        click.echo(json.dumps(payload, indent=2))
+        return
+
+    for note in shortfalls:
+        click.echo(f"note: {note}")
+    click.echo(
+        f"epsilon {epsilon} per hop, radius {mechanism.radius} hops, seed {seed}\n"
+        f"{'group':<14}{'n':>4}{'median km':>11}{'p95 km':>10}"
+        f"{'same LSOA':>11}{'self prob':>11}"
+    )
+    for name, row in sorted(summaries.items()):
+        click.echo(
+            f"{name:<14}{row.count:>4}{row.median_km:>11.2f}{row.p95_km:>10.2f}"
+            f"{row.area_preserved:>10.1%}{row.median_self_probability:>10.3%}"
+        )
+    click.echo(
+        "\nreported by group, never as a national average: protection and "
+        "utility vary\nby place, which is the disparity this design exists to "
+        "address."
+    )

@@ -61,3 +61,22 @@ jobs:
             echo "::error::Wheel contains data files; it must ship code only."
             exit 1
           fi
+
+  benchmark:
+    # Reports, never gates. The real numbers cannot be produced here: ONSPD
+    # cannot be committed and is a gigabyte besides, so this runs the
+    # measurement code over a synthetic graph purely to catch it breaking. The
+    # figures quoted in the documentation come from a local run against the
+    # real artefact, recorded with the graph hash that produced them.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync --group dev
+      - name: Measurement code runs end to end
+        run: uv run pytest tests/test_utility.py tests/test_attack.py -v
+      - name: Throughput at scale
+        run: uv run pytest tests/test_scale.py -v
