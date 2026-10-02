@@ -23,6 +23,7 @@ nav:
   - Overview: index.md
   - Getting started: getting-started.md
   - Why not just truncate?: why-not-truncation.md
+  - Compared to traditional SDC: compared-to-traditional-sdc.md
   - How it works: how-it-works.md
   - Limitations: limitations.md
   - References: references.md
