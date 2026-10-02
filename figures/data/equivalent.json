@@ -1,0 +1,231 @@
+{
+  "seed": 0,
+  "per_group": 12,
+  "graph": {
+    "source": "ONSPD_AUG_2026_UK.csv",
+    "source_sha256": "dcd2947a52aec97d49856411755caa8e5e6d32ef24ea929025587432ebfeba77",
+    "gb_only": false,
+    "max_edge_km": 50.0,
+    "prune_alpha": null,
+    "library_version": "0.1.0.dev0",
+    "schema_version": 2
+  },
+  "results": [
+    {
+      "group": "urban",
+      "postcode": "ST5 1DA",
+      "outward": "ST5",
+      "district_size": 1999,
+      "truncation_km": 2.8156652936106963,
+      "epsilon": 0.22846172371079954,
+      "achieved_km": 2.8124624441937
+    },
+    {
+      "group": "urban",
+      "postcode": "B21 9AG",
+      "outward": "B21",
+      "district_size": 426,
+      "truncation_km": 0.8810463822191742,
+      "epsilon": 0.46637031480405683,
+      "achieved_km": 0.8801908883872861
+    },
+    {
+      "group": "urban",
+      "postcode": "M28 1AE",
+      "outward": "M28",
+      "district_size": 1061,
+      "truncation_km": 2.17300147653633,
+      "epsilon": 0.43866686384922415,
+      "achieved_km": 2.171981813920181
+    },
+    {
+      "group": "urban",
+      "postcode": "OL1 4NN",
+      "outward": "OL1",
+      "district_size": 697,
+      "truncation_km": 2.427669097726046,
+      "epsilon": 0.45899422736106804,
+      "achieved_km": 2.4270477951618505
+    },
+    {
+      "group": "urban",
+      "postcode": "EX39 3FU",
+      "outward": "EX39",
+      "district_size": 1357,
+      "truncation_km": 3.553701190992665,
+      "epsilon": 0.3701401648522369,
+      "achieved_km": 3.5522032599500837
+    },
+    {
+      "group": "urban",
+      "postcode": "CO16 7PQ",
+      "outward": "CO16",
+      "district_size": 810,
+      "truncation_km": 3.219066755418934,
+      "epsilon": 0.6015625974377611,
+      "achieved_km": 3.2164236350331716
+    },
+    {
+      "group": "urban",
+      "postcode": "E15 4BD",
+      "outward": "E15",
+      "district_size": 781,
+      "truncation_km": 0.9727492022372167,
+      "epsilon": 0.4101267187390493,
+      "achieved_km": 0.9719593612903782
+    },
+    {
+      "group": "urban",
+      "postcode": "B98 0TH",
+      "outward": "B98",
+      "district_size": 789,
+      "truncation_km": 1.756762820873504,
+      "epsilon": 0.4124677401414987,
+      "achieved_km": 1.75528060434792
+    },
+    {
+      "group": "urban",
+      "postcode": "OX16 0QS",
+      "outward": "OX16",
+      "district_size": 1293,
+      "truncation_km": 1.4635781018336769,
+      "epsilon": 0.30104615885383174,
+      "achieved_km": 1.4618649048390209
+    },
+    {
+      "group": "urban",
+      "postcode": "SN3 2QA",
+      "outward": "SN3",
+      "district_size": 1250,
+      "truncation_km": 1.5449952471590482,
+      "epsilon": 0.3270062809522469,
+      "achieved_km": 1.5443781920242203
+    },
+    {
+      "group": "urban",
+      "postcode": "TW11 8SJ",
+      "outward": "TW11",
+      "district_size": 525,
+      "truncation_km": 1.12170833616228,
+      "epsilon": 0.46704671754782573,
+      "achieved_km": 1.1216046540559645
+    },
+    {
+      "group": "urban",
+      "postcode": "BH23 5HN",
+      "outward": "BH23",
+      "district_size": 1528,
+      "truncation_km": 4.415269542933574,
+      "epsilon": 0.6640429497841555,
+      "achieved_km": 4.410770907675891
+    },
+    {
+      "group": "rural",
+      "postcode": "AL4 9FH",
+      "outward": "AL4",
+      "district_size": 769,
+      "truncation_km": 3.5719621250917597,
+      "epsilon": 0.6597523161211645,
+      "achieved_km": 3.570732417866116
+    },
+    {
+      "group": "rural",
+      "postcode": "IP6 8DH",
+      "outward": "IP6",
+      "district_size": 779,
+      "truncation_km": 5.388506490152304,
+      "epsilon": 0.372950048871905,
+      "achieved_km": 5.387830825109489
+    },
+    {
+      "group": "rural",
+      "postcode": "SY10 0BW",
+      "outward": "SY10",
+      "district_size": 803,
+      "truncation_km": 16.357306825241864,
+      "epsilon": 0.6639029789976293,
+      "achieved_km": 16.325732632871336
+    },
+    {
+      "group": "rural",
+      "postcode": "DD6 8RH",
+      "outward": "DD6",
+      "district_size": 354,
+      "truncation_km": 5.564065637097167,
+      "epsilon": 1.082868263487544,
+      "achieved_km": 5.553937882259757
+    },
+    {
+      "group": "rural",
+      "postcode": "SA13 3BW",
+      "outward": "SA13",
+      "district_size": 532,
+      "truncation_km": 11.285219509170819,
+      "epsilon": 0.5340854557645716,
+      "achieved_km": 11.281392289961378
+    },
+    {
+      "group": "rural",
+      "postcode": "SY5 0RA",
+      "outward": "SY5",
+      "district_size": 1058,
+      "truncation_km": 8.176303207002535,
+      "epsilon": 0.43366727379007286,
+      "achieved_km": 8.175236388019615
+    },
+    {
+      "group": "rural",
+      "postcode": "CA4 9RH",
+      "outward": "CA4",
+      "district_size": 477,
+      "truncation_km": 11.841684481193099,
+      "epsilon": 0.6344674338438308,
+      "achieved_km": 11.828801883538333
+    },
+    {
+      "group": "rural",
+      "postcode": "NE61 5SH",
+      "outward": "NE61",
+      "district_size": 1505,
+      "truncation_km": 7.638187128765162,
+      "epsilon": 0.626278349174265,
+      "achieved_km": 7.619382192802774
+    },
+    {
+      "group": "rural",
+      "postcode": "BA13 4LF",
+      "outward": "BA13",
+      "district_size": 629,
+      "truncation_km": 3.580187699431966,
+      "epsilon": 0.5571581898533331,
+      "achieved_km": 3.579991620101924
+    },
+    {
+      "group": "rural",
+      "postcode": "SY22 5HL",
+      "outward": "SY22",
+      "district_size": 415,
+      "truncation_km": 10.883859971349251,
+      "epsilon": 0.6549886860687539,
+      "achieved_km": 10.878266222151396
+    },
+    {
+      "group": "rural",
+      "postcode": "AB30 1UF",
+      "outward": "AB30",
+      "district_size": 318,
+      "truncation_km": 7.881110219397844,
+      "epsilon": 0.6798720512098215,
+      "achieved_km": 7.878069052756519
+    },
+    {
+      "group": "rural",
+      "postcode": "RG25 3AX",
+      "outward": "RG25",
+      "district_size": 391,
+      "truncation_km": 6.062304240817087,
+      "epsilon": 0.5916896005133201,
+      "achieved_km": 6.057573524110128
+    }
+  ]
+}

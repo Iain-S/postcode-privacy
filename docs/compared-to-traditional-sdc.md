@@ -39,14 +39,24 @@ Measured over twenty-four sampled postcodes on the August 2026 build:
 
 | | min | median | max | spread |
 |---|---|---|---|---|
-| urban | 0.229 | 0.426 | 0.664 | 2.9× |
-| rural | 0.205 | 0.574 | 1.083 | 5.3× |
-| overall | 0.205 | **0.463** | 1.083 | 5.3× |
+| urban | 0.228 | 0.426 | 0.664 | 2.9× |
+| rural | 0.373 | 0.630 | 1.083 | 2.9× |
+| overall | 0.228 | **0.501** | 1.083 | 4.7× |
 
-So **\(\varepsilon \approx 0.46\) per hop costs an analyst about what truncation costs
-them** — on average. Locally it ranges from 0.21 in rural Shropshire to 1.08 in Dundee,
+So **\(\varepsilon \approx 0.5\) per hop costs an analyst about what truncation costs
+them** — on average. Locally it ranges from 0.23 in Stoke-on-Trent to 1.08 in Dundee,
 because what truncation destroys varies from 0.9 km of positional accuracy in a dense
 Birmingham district to 16.4 km in a sparse Shropshire one.
+
+![Strip plot of equivalent epsilon for urban and rural postcodes](figures/equivalent-light.svg#only-light){ loading=lazy }
+![Strip plot of equivalent epsilon for urban and rural postcodes](figures/equivalent-dark.svg#only-dark){ loading=lazy }
+
+!!! note "These numbers were re-measured"
+    An earlier version of this page gave an overall median of 0.463 from a spread of
+    5.3×. Those values were computed on a graph in which Northern Ireland was
+    mistakenly placed in north-west England, which corrupted the neighbourhoods of the
+    sampled postcodes nearest that area: rural Shropshire moved from 0.205 to 0.664
+    once the coordinates were fixed. The figures above are from the corrected graph.
 
 !!! warning "This comparison flatters truncation"
     It equates the two on **utility cost only**. It says nothing about privacy, and
