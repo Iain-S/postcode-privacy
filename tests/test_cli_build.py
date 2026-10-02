@@ -148,3 +148,18 @@ def test_it_refuses_to_overwrite_an_existing_artefact(tmp_path: Path) -> None:
 
     assert result.exit_code != 0
     assert out.read_bytes() == b"existing"
+
+
+def test_fetch_and_onspd_are_mutually_exclusive(tmp_path: Path) -> None:
+    result = run(["build", "--onspd", str(onspd(tmp_path)), "--fetch",
+                  "--uniform-prior", "-o", str(tmp_path / "t.ppg")])  # fmt: skip
+
+    assert result.exit_code != 0
+    assert "--fetch" in result.output
+
+
+def test_one_of_fetch_or_onspd_is_required(tmp_path: Path) -> None:
+    result = run(["build", "--uniform-prior", "-o", str(tmp_path / "t.ppg")])
+
+    assert result.exit_code != 0
+    assert "--onspd" in result.output

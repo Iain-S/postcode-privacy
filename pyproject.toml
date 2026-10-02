@@ -42,6 +42,7 @@ dev = [
     "pre-commit>=3.7",
     # The [frames] extra is optional for users but must be tested here.
     "pandas>=2.0",
+    "pyarrow>=14",
 ]
 
 [tool.hatch.build.targets.wheel]

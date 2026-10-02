@@ -57,7 +57,7 @@ def test_each_distinct_postcode_is_expanded_only_once() -> None:
 
     mechanism.perturb_many(postcodes, subjects, key=key)
 
-    assert len(mechanism._cache) == 2
+    assert mechanism.cache_size == 2
 
 
 def test_mismatched_input_lengths_are_rejected() -> None:

@@ -1,9 +1,9 @@
 # Getting started
 
 !!! warning "Pre-alpha"
-    `build`, `keygen` and `perturb` work, so the quickstart below runs end to end.
-    `report` and `calibrate` are not implemented yet; those sections document the
-    intended interface so that it can be argued with before it is built.
+    All five commands work and the quickstart runs end to end. The library has not
+    been reviewed by anyone but its author, and the known limitations are real — read
+    [Limitations](limitations.md) before using it on anything that matters.
 
 ## Install
 
@@ -23,6 +23,15 @@ pip install "postcode-privacy[frames]"
 Postcode Directory are available under the Open Government Licence, but **Northern
 Ireland (`BT`) records are licensed from Land & Property Services and may not be
 redistributed**. You build the graph from your own copy.
+
+```bash
+# Download the current release automatically (~250 MB).
+postcode-privacy build --fetch --uniform-prior -o uk.ppg
+```
+
+`--fetch` is best-effort: ONSPD is republished quarterly under a new identifier, and
+the portal search that finds it is outside this project's control. Every failure path
+tells you how to download by hand and pass `--onspd PATH` instead.
 
 Population figures are a separate download, because the three nations publish them
 separately: England and Wales by census output area, Scotland per postcode, Northern
@@ -86,6 +95,9 @@ release made with the old key: those outputs can never be reproduced or explaine
 
 ## 3. Perturb a dataset
 
+CSV needs no extra. Parquet needs `postcode-privacy[frames]`, and the format is
+chosen per file, so a pipeline can change format and perturb in one step.
+
 ```bash
 postcode-privacy perturb patients.csv -o patients_dp.csv \
     --graph uk.ppg \
@@ -144,9 +156,29 @@ postcode-privacy calibrate --graph uk.ppg --target median-displacement-km=2.0
 Or inspect what a given \(\varepsilon\) does, nationally or to one postcode:
 
 ```bash
-postcode-privacy report --graph uk.ppg --epsilon 0.8 --sample 10000
-postcode-privacy report --graph uk.ppg --epsilon 0.8 --postcode "LS2 9JT"
+postcode-privacy report --graph uk.ppg --epsilon 1.0 --postcode "LS6 1AA"
+postcode-privacy report --graph uk.ppg --epsilon 1.0 --sample 100 --json
 ```
+
+```
+LS6 1AA at epsilon 1.0 per hop, radius 62 hops
+  displacement: median 0.38 km, p95 1.03 km, mean 0.55 km
+  self probability: 4.200% (chance the true postcode is handed back)
+  teleport probability: 2.2e-09
+  ball size: 46,694 postcodes
+  displacement excludes teleports, which are counted separately.
+```
+
+Displacement is reported **conditional on not teleporting**, with the teleport
+probability beside it. Combining them would hide a radius that is too small, because a
+handful of country-wide jumps would drag the average up and look like ordinary local
+spread.
+
+!!! note "Calibration is slow, deliberately"
+    Solving a displacement target costs roughly eighteen seconds per sampled postcode
+    on a national graph, because every candidate \(\varepsilon\) implies a different
+    radius and so a different ball. The default sample is 16; raising it raises the
+    cost proportionally. Progress is printed to standard error.
 
 ## From Python
 

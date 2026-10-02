@@ -144,6 +144,16 @@ class HopMechanism:
         # part -- expanding the ball -- is paid once per postcode, not per person.
         self._cache: dict[int, Distribution] = {}
 
+    @property
+    def cache_size(self) -> int:
+        """How many distinct postcodes have a distribution cached.
+
+        Public because it is the observable form of the batch path's whole
+        purpose: a dataset should cost one ball expansion per distinct
+        postcode, not one per row.
+        """
+        return len(self._cache)
+
     def clear_cache(self) -> None:
         """Forget cached distributions.
 

@@ -29,6 +29,7 @@ from pathlib import Path
 import click
 import numpy as np
 
+from postcode_privacy.fetch import fetch_onspd
 from postcode_privacy.graph.artefact import load_graph, save_graph
 from postcode_privacy.graph.build import assemble
 from postcode_privacy.graph.onspd import read_onspd
@@ -116,6 +117,42 @@ def keygen(out: Path) -> None:
     click.echo(f"wrote {out} (mode 0400). Treat it as you would the raw data.")
 
 
+PARQUET_SUFFIXES = {".parquet", ".pq"}
+
+
+def _require_frames(path: Path) -> object:
+    """Import pandas, or explain which extra provides it."""
+    try:
+        import pandas
+    except ImportError as error:  # pragma: no cover - exercised by install shape
+        raise click.UsageError(
+            f"reading or writing {path.suffix} needs pandas and pyarrow, which "
+            'are not installed. Install them with: pip install "postcode-privacy'
+            '[frames]". CSV needs no extra.'
+        ) from error
+    return pandas
+
+
+def _read_records(path: Path) -> list[dict[str, object]]:
+    """Rows as dictionaries, whatever the file format."""
+    if path.suffix.lower() in PARQUET_SUFFIXES:
+        pandas = _require_frames(path)
+        return pandas.read_parquet(path).to_dict("records")  # ty: ignore
+    with path.open(newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
+def _write_records(path: Path, rows: list[dict[str, object]]) -> None:
+    if path.suffix.lower() in PARQUET_SUFFIXES:
+        pandas = _require_frames(path)
+        pandas.DataFrame(rows).to_parquet(path, index=False)  # ty: ignore
+        return
+    with path.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 KEY_ENVIRONMENT_VARIABLE = "POSTCODE_PRIVACY_KEY"
 
 
@@ -183,8 +220,7 @@ def perturb(
         )
     key = _load_key(key_file)
 
-    with source.open(newline="") as handle:
-        rows = list(csv.DictReader(handle))
+    rows = _read_records(source)
     if not rows:
         raise click.UsageError(f"{source} has no rows")
     for column in (postcode_col, subject_col):
@@ -198,8 +234,8 @@ def perturb(
     # pass. Stopping at the first would report one row number when the operator
     # needs all of them, and a second run would be needed to find the next.
     outputs = mechanism.perturb_many(
-        [row[postcode_col] for row in rows],
-        [row[subject_col] for row in rows],
+        [str(row[postcode_col]) for row in rows],
+        [str(row[subject_col]) for row in rows],
         key=key,
         on_error="null",
     )
@@ -215,18 +251,15 @@ def perturb(
             "--on-error drop or --on-error null to continue instead."
         )
 
-    written = [
+    written: list[dict[str, object]] = [
         {**row, out_col: value if value is not None else ""}
         for row, value in zip(rows, outputs, strict=True)
         if not (value is None and on_error == "drop")
     ]
-    with out.open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(written[0]))
-        writer.writeheader()
-        writer.writerows(written)
+    _write_records(out, written)
 
     distributions = [
-        mechanism.distribution(row[postcode_col])
+        mechanism.distribution(str(row[postcode_col]))
         for index, row in enumerate(rows)
         if outputs[index] is not None
     ]
@@ -242,7 +275,7 @@ def perturb(
         "rows_in": len(rows),
         "rows_written": len(written),
         "rows_failed": len(failed),
-        "distinct_postcodes": len({row[postcode_col] for row in rows}),
+        "distinct_postcodes": len({str(row[postcode_col]) for row in rows}),
         "out_col": out_col,
         "graph": provenance,
     }
@@ -280,9 +313,21 @@ def _sha256(path: Path) -> str:
 @inline_key_option
 @click.option(
     "--onspd",
-    required=True,
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
     help="ONS Postcode Directory CSV.",
+)
+@click.option(
+    "--fetch",
+    is_flag=True,
+    help="Download the current ONSPD release instead of supplying one.",
+)
+@click.option(
+    "--cache-dir",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=Path("data"),
+    show_default=True,
+    help="Where --fetch puts the download.",
 )
 @click.option("--out", "-o", required=True, type=click.Path(path_type=Path))
 @click.option(
@@ -314,7 +359,9 @@ def _sha256(path: Path) -> str:
     help="Enable long-edge pruning and bridging. Off by default; see the docs.",
 )
 def build(
-    onspd: Path,
+    onspd: Path | None,
+    fetch: bool,
+    cache_dir: Path,
     out: Path,
     oa_populations: tuple[Path, ...],
     postcode_populations: tuple[Path, ...],
@@ -323,6 +370,10 @@ def build(
     prune_alpha: float | None,
 ) -> None:
     """Build a postcode graph artefact from ONSPD."""
+    if fetch and onspd is not None:
+        raise click.UsageError("give either --onspd PATH or --fetch, not both.")
+    if not fetch and onspd is None:
+        raise click.UsageError("give --onspd PATH, or --fetch to download one.")
     if out.exists():
         raise click.UsageError(
             f"{out} already exists, refusing to overwrite it. A released dataset "
@@ -335,6 +386,18 @@ def build(
             "Falling back silently would ship a uniform prior that looked "
             "population weighted."
         )
+
+    if onspd is None:
+        # Best-effort: the release identifier changes quarterly and the portal
+        # search is outside our control, so every failure explains the manual
+        # route rather than leaving the user stuck.
+        try:
+            onspd = fetch_onspd(cache_dir)
+        except Exception as error:
+            raise click.ClickException(
+                f"could not fetch ONSPD automatically: {error}"
+            ) from error
+        click.echo(f"fetched {onspd}", err=True)
 
     table = read_onspd(onspd, gb_only=gb_only)
     click.echo(
