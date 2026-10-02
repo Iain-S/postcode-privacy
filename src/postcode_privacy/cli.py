@@ -17,16 +17,24 @@ which are usually less well protected than the data they describe.
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import os
 import secrets
 import stat
 from dataclasses import asdict
+from importlib.metadata import version
 from pathlib import Path
 
 import click
+import numpy as np
 
-from postcode_privacy.graph.artefact import load_graph
+from postcode_privacy.graph.artefact import load_graph, save_graph
+from postcode_privacy.graph.build import assemble
+from postcode_privacy.graph.onspd import read_onspd
+from postcode_privacy.graph.postcode_graph import PostcodeGraph
+from postcode_privacy.graph.prior import population_prior
+from postcode_privacy.graph.provenance import Provenance
 from postcode_privacy.mechanism.mechanism import ON_ERROR_POLICIES, HopMechanism
 from postcode_privacy.mechanism.prf import KEY_BYTES, Key
 
@@ -248,3 +256,152 @@ def _summarise_rows(indices: list[int], limit: int = 10) -> str:
     shown = ", ".join(str(index + 1) for index in indices[:limit])
     extra = len(indices) - limit
     return f"row {shown}" + (f" and {extra} more" if extra > 0 else "")
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+@main.command()
+@inline_key_option
+@click.option(
+    "--onspd",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="ONS Postcode Directory CSV.",
+)
+@click.option("--out", "-o", required=True, type=click.Path(path_type=Path))
+@click.option(
+    "--oa-populations",
+    multiple=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Census population by output area or data zone. Repeatable.",
+)
+@click.option(
+    "--postcode-populations",
+    multiple=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Census population per postcode, where a nation publishes it. Repeatable.",
+)
+@click.option(
+    "--uniform-prior",
+    is_flag=True,
+    help="Weight every postcode equally. Must be asked for explicitly.",
+)
+@click.option(
+    "--gb-only",
+    is_flag=True,
+    help="Exclude Northern Ireland, whose records may not be redistributed.",
+)
+@click.option(
+    "--prune-alpha",
+    type=float,
+    default=None,
+    help="Enable long-edge pruning and bridging. Off by default; see the docs.",
+)
+def build(
+    onspd: Path,
+    out: Path,
+    oa_populations: tuple[Path, ...],
+    postcode_populations: tuple[Path, ...],
+    uniform_prior: bool,
+    gb_only: bool,
+    prune_alpha: float | None,
+) -> None:
+    """Build a postcode graph artefact from ONSPD."""
+    if out.exists():
+        raise click.UsageError(
+            f"{out} already exists, refusing to overwrite it. A released dataset "
+            "can only be explained if the graph that produced it still exists."
+        )
+    if not (oa_populations or postcode_populations or uniform_prior):
+        raise click.UsageError(
+            "no population sources given. Pass --oa-populations and/or "
+            "--postcode-populations, or ask for --uniform-prior explicitly. "
+            "Falling back silently would ship a uniform prior that looked "
+            "population weighted."
+        )
+
+    table = read_onspd(onspd, gb_only=gb_only)
+    click.echo(
+        f"read {table.n_rows_read:,} rows -> {len(table.postcodes):,} usable nodes",
+        err=True,
+    )
+    for reason, count in sorted(table.dropped.items()):
+        click.echo(f"  dropped {reason.replace('_', ' ')}: {count:,}", err=True)
+    click.echo(f"  large user excluded: {len(table.large_user):,}", err=True)
+
+    if uniform_prior:
+        prior = np.ones(len(table.postcodes), dtype=np.int64)
+        coverage = None
+        click.echo("prior: uniform (requested)", err=True)
+    else:
+        prior, coverage = population_prior(
+            table.postcodes,
+            table.output_areas,
+            area_populations=list(oa_populations),
+            postcode_populations=list(postcode_populations),
+        )
+        total = coverage.total or 1
+        click.echo(
+            f"prior: population, {int(np.sum(prior)):,} people. coverage "
+            f"{(total - coverage.unmatched) / total:.2%} "
+            f"(per postcode {coverage.from_postcode:,}, "
+            f"per area {coverage.from_area:,}, "
+            f"floored {coverage.unmatched:,})",
+            err=True,
+        )
+
+    assembled = assemble(table.eastings, table.northings, prune_alpha=prune_alpha)
+    graph = PostcodeGraph.from_edges(
+        postcodes=table.postcodes,
+        edges=assembled.edges,
+        prior=prior,
+        excluded=table.large_user,
+        eastings=table.eastings,
+        northings=table.northings,
+    )
+    degree = np.bincount(assembled.edges.ravel(), minlength=graph.n_nodes)
+    click.echo(
+        f"graph: {len(assembled.edges):,} edges, mean degree {degree.mean():.2f}",
+        err=True,
+    )
+
+    provenance = Provenance(
+        source=onspd.name,
+        source_sha256=_sha256(onspd),
+        gb_only=gb_only,
+        prune_alpha=prune_alpha,
+        library_version=version("postcode-privacy"),
+    )
+    save_graph(graph, out, provenance=provenance)
+
+    manifest = {
+        "nodes": graph.n_nodes,
+        "edges": len(assembled.edges),
+        "mean_degree": round(float(degree.mean()), 3),
+        "rows_read": table.n_rows_read,
+        "dropped": table.dropped,
+        "large_user_excluded": len(table.large_user),
+        "pruned_edges": len(assembled.pruned),
+        "bridges": len(assembled.bridges),
+        "prior": (
+            {"kind": "uniform"}
+            if coverage is None
+            else {
+                "kind": "population",
+                "total_people": int(np.sum(prior)),
+                "from_postcode": coverage.from_postcode,
+                "from_area": coverage.from_area,
+                "unmatched": coverage.unmatched,
+            }
+        ),
+        "graph": asdict(provenance),
+    }
+    manifest_path = out.with_suffix(".manifest.json")
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
+    click.echo(f"wrote {out} and {manifest_path}", err=True)

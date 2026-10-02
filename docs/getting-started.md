@@ -1,10 +1,9 @@
 # Getting started
 
 !!! warning "Pre-alpha"
-    `keygen` and `perturb` work. `build`, `report` and `calibrate` are not implemented
-    yet, so you cannot currently produce the graph artefact that `perturb` needs — the
-    quickstart below is not runnable end to end. Those sections document the intended
-    interface so that it can be argued with before it is built.
+    `build`, `keygen` and `perturb` work, so the quickstart below runs end to end.
+    `report` and `calibrate` are not implemented yet; those sections document the
+    intended interface so that it can be argued with before it is built.
 
 ## Install
 
@@ -25,23 +24,38 @@ Postcode Directory are available under the Open Government Licence, but **Northe
 Ireland (`BT`) records are licensed from Land & Property Services and may not be
 redistributed**. You build the graph from your own copy.
 
-```bash
-# Fetch the current ONSPD release from the ONS Open Geography Portal (~250 MB).
-postcode-privacy build --fetch -o uk.ppg
-
-# Or point at a download you already have.
-postcode-privacy build --onspd ONSPD_AUG_2026_UK.csv -o uk.ppg
-```
-
-For a population-weighted prior, supply census population figures as well. Without
-them the prior falls back to uniform, with a warning rather than an error.
+Population figures are a separate download, because the three nations publish them
+separately: England and Wales by census output area, Scotland per postcode, Northern
+Ireland by data zone. Pass whichever you have; `--oa-populations` and
+`--postcode-populations` are both repeatable.
 
 ```bash
 postcode-privacy build \
     --onspd ONSPD_AUG_2026_UK.csv \
     --oa-populations census2021_oa_population_ew.csv \
+    --oa-populations ni_census2021_datazone_population.csv \
+    --oa-populations scotland_outputarea2022_usualresidentpopulation.csv \
+    --postcode-populations scotland_postcode2022_usualresidentpopulation.csv \
     -o uk.ppg
 ```
+
+```
+read 2,729,090 rows -> 1,725,511 usable nodes
+  dropped large user: 75,253
+  dropped no grid reference: 9,600
+  dropped terminated: 918,726
+prior: population, 66,305,212 people. coverage 100.00%
+  (per postcode 152,485, per area 1,573,026, floored 0)
+graph: 5,357,722 edges, mean degree 6.21
+```
+
+Coverage is reported rather than assumed. A prior that had silently fallen back to its
+floor across a whole nation would otherwise look exactly like a working one, which is
+also why **a uniform prior has to be asked for explicitly** with `--uniform-prior`
+rather than being a silent fallback.
+
+A build manifest is written beside the artefact, recording the source file and its
+SHA-256, every exclusion count, and where each postcode's weight came from.
 
 If you intend to share the resulting artefact, exclude Northern Ireland:
 
