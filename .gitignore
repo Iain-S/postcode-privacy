@@ -39,6 +39,9 @@ NSPL*
 *_UK.csv
 *_UK.txt
 
+# OS Terrain 50, used only to render the density figure's hillshade.
+terrain50*
+
 # Census population extracts used to build the prior.
 census*_oa_population*.csv
 *usualresidentpopulation*.csv

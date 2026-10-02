@@ -9,6 +9,7 @@ from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
+from pyproj import Transformer
 
 from postcode_privacy.postcodes import normalise
 
@@ -28,6 +29,8 @@ USER_TYPE_COLUMN = "usrtypind"
 # Census small area. England and Wales use 2021 output areas, Scotland 2022
 # output areas, Northern Ireland 2021 data zones; ONSPD puts all three here.
 OUTPUT_AREA_COLUMN = "oa21cd"
+LATITUDE_COLUMN = "lat"
+LONGITUDE_COLUMN = "long"
 
 # Royal Mail classes a postcode as "large user" when it belongs to a single
 # organisation receiving a high volume of mail. Such a postcode has no
@@ -50,7 +53,26 @@ REQUIRED_COLUMNS = (
     NORTHING_COLUMN,
     USER_TYPE_COLUMN,
     OUTPUT_AREA_COLUMN,
+    LATITUDE_COLUMN,
+    LONGITUDE_COLUMN,
 )
+
+
+# ONSPD supplies Northern Ireland eastings and northings in the IRISH Grid,
+# not the British National Grid. Read as the latter they place Belfast in the
+# Derbyshire Peak District -- inside the valid envelope, so every range check
+# passes and the graph is quietly, badly wrong. The authoritative latitude and
+# longitude are projected instead.
+#
+# Great Britain references are used as supplied, but checked against the same
+# projection: a file whose grid no longer means what we think it means is
+# refused rather than read. That check is what would have caught this on day one.
+WGS84 = "EPSG:4326"
+BRITISH_NATIONAL_GRID = "EPSG:27700"
+# Generous. The projection without a datum grid is accurate to a few metres and
+# ONSPD centroids are rounded, but a wrong grid is wrong by hundreds of
+# kilometres, so anything in between is still a loud failure.
+MAX_GRID_DISCREPANCY_M = 1_000.0
 
 
 class OnspdSchemaError(ValueError):
@@ -84,7 +106,7 @@ def read_onspd(path: Path, *, gb_only: bool = False) -> OnspdTable:
         licensed from Land & Property Services for internal use and may not be
         redistributed, so artefacts intended for sharing must be built this way.
     """
-    rows: list[tuple[str, int, int, str]] = []
+    pending: list[tuple[str, int, int, str, float, float]] = []
     large_user: list[str] = []
     dropped: dict[str, int] = {}
     n_rows_read = 0
@@ -114,22 +136,27 @@ def read_onspd(path: Path, *, gb_only: bool = False) -> OnspdTable:
                 continue
             easting = row[EASTING_COLUMN].strip()
             northing = row[NORTHING_COLUMN].strip()
-            if not easting or not northing:
+            latitude = row[LATITUDE_COLUMN].strip()
+            longitude = row[LONGITUDE_COLUMN].strip()
+            if not easting or not northing or not latitude or not longitude:
                 drop("no_grid_reference")
                 continue
             if not _on_the_national_grid(int(easting), int(northing)):
                 drop("outside_national_grid")
                 continue
 
-            rows.append(
+            pending.append(
                 (
                     postcode,
                     int(easting),
                     int(northing),
                     row[OUTPUT_AREA_COLUMN].strip(),
+                    float(latitude),
+                    float(longitude),
                 )
             )
 
+    rows = _resolve_coordinates(pending, path)
     rows.sort()
     columns = zip(*rows, strict=True) if rows else ((), (), (), ())
     postcodes, eastings, northings, output_areas = columns
@@ -143,6 +170,49 @@ def read_onspd(path: Path, *, gb_only: bool = False) -> OnspdTable:
         n_rows_read=n_rows_read,
         dropped=dropped,
     )
+
+
+def _resolve_coordinates(
+    pending: list[tuple[str, int, int, str, float, float]], path: Path
+) -> list[tuple[str, int, int, str]]:
+    """Use the supplied grid references for GB, and projected ones for NI.
+
+    Both are checked against the projection of the row's own latitude and
+    longitude. Great Britain references must agree; Northern Ireland ones will
+    not, because they are Irish Grid, and are replaced.
+    """
+    if not pending:
+        return []
+
+    latitudes = np.array([row[4] for row in pending])
+    longitudes = np.array([row[5] for row in pending])
+    transformer = Transformer.from_crs(WGS84, BRITISH_NATIONAL_GRID, always_xy=True)
+    projected_e, projected_n = transformer.transform(longitudes, latitudes)
+
+    supplied_e = np.array([row[1] for row in pending], dtype=np.float64)
+    supplied_n = np.array([row[2] for row in pending], dtype=np.float64)
+    discrepancy = np.hypot(projected_e - supplied_e, projected_n - supplied_n)
+
+    northern_ireland = np.array(
+        [row[0].startswith(NORTHERN_IRELAND_PREFIX) for row in pending]
+    )
+    disagrees = discrepancy > MAX_GRID_DISCREPANCY_M
+    unexplained = disagrees & ~northern_ireland
+    if unexplained.any():
+        worst = int(np.argmax(np.where(unexplained, discrepancy, 0)))
+        raise OnspdSchemaError(
+            f"{path} has {int(unexplained.sum()):,} rows whose grid reference "
+            f"contradicts their own latitude and longitude, the worst by "
+            f"{discrepancy[worst]:,.0f} m ({pending[worst][0]}). The file's "
+            "projection is not the British National Grid this reader assumes."
+        )
+
+    eastings = np.where(northern_ireland, projected_e, supplied_e)
+    northings = np.where(northern_ireland, projected_n, supplied_n)
+    return [
+        (row[0], round(east), round(north), row[3])
+        for row, east, north in zip(pending, eastings, northings, strict=True)
+    ]
 
 
 def _check_columns(fieldnames: Sequence[str] | None, path: Path) -> None:

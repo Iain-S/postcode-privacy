@@ -15,14 +15,37 @@ from postcode_privacy.graph.onspd import OnspdSchemaError, read_onspd
 # release. Earlier releases used oseast1m/osnrth1m and the fixture encoded
 # that guess, so the suite passed while the reader could not read a real file.
 HEADER = (
-    "pcds,doterm,east1m,north1m,lad26cd,oa21cd,lsoa21cd,msoa21cd,ruc21ind,usrtypind"
+    "pcds,doterm,east1m,north1m,lad26cd,oa21cd,lsoa21cd,msoa21cd,ruc21ind,"
+    "usrtypind,lat,long"
 )
+
+
+def _with_coords(row: str) -> str:
+    """Append latitude and longitude consistent with the row's grid reference.
+
+    Derived rather than written by hand, so a fixture cannot drift from the
+    invariant the reader enforces: a grid reference must agree with its own
+    coordinates. Fixtures encoding a wrong assumption is exactly the failure
+    mode this repository watches for, and it is how the Irish Grid bug
+    survived until a figure was drawn.
+    """
+    from pyproj import Transformer
+
+    fields = row.split(",")
+    easting, northing = fields[2].strip(), fields[3].strip()
+    if not easting or not northing:
+        return row + ",,"
+    to_wgs84 = Transformer.from_crs("EPSG:27700", "EPSG:4326", always_xy=True)
+    longitude, latitude = to_wgs84.transform(float(easting), float(northing))
+    return f"{row},{latitude:.6f},{longitude:.6f}"
 
 
 def write_onspd(path: Path, rows: list[str]) -> Path:
     """Write a miniature ONSPD file, defaulting rows to small-user."""
+    # Two fewer commas than the header: lat and long are appended below.
+    body = HEADER.count(",") - 2
     filled = [
-        row if row.count(",") == HEADER.count(",") else row + ",0" for row in rows
+        _with_coords(row if row.count(",") == body else row + ",0") for row in rows
     ]
     csv = path / "onspd.csv"
     csv.write_text("\n".join([HEADER, *filled]) + "\n")
@@ -218,3 +241,50 @@ def test_output_area_codes_are_read(tmp_path: Path) -> None:
     table = read_onspd(csv)
 
     assert list(table.output_areas) == ["E00057834"]
+
+
+NI_ROW = (
+    # Belfast. The grid reference is the IRISH Grid, as ONSPD supplies it; the
+    # latitude and longitude are the authoritative position.
+    "BT1 1DA,,333759,374365,0,N00000001,54.599803,-5.931046"
+)
+GB_ROW = "LS6 1AA,,428111,435817,0,E00057834,53.817875,-1.574508"
+
+
+def write_with_coords(path: Path, rows: list[str]) -> Path:
+    csv = path / "onspd_coords.csv"
+    header = "pcds,doterm,east1m,north1m,usrtypind,oa21cd,lat,long"
+    csv.write_text("\n".join([header, *rows]) + "\n")
+    return csv
+
+
+def test_northern_ireland_grid_references_are_reprojected(tmp_path: Path) -> None:
+    # ONSPD gives Northern Ireland eastings and northings in the Irish Grid.
+    # Read as British National Grid they put Belfast in Derbyshire, within the
+    # valid envelope, so every range check passes and the graph is quietly
+    # wrong. The authoritative latitude and longitude are used instead.
+    table = read_onspd(write_with_coords(tmp_path, [NI_ROW]))
+
+    assert list(table.postcodes) == ["BT1 1DA"]
+    # Belfast in British National Grid, west of Scotland rather than in England.
+    assert table.eastings[0] == pytest.approx(146_196, abs=200)
+    assert table.northings[0] == pytest.approx(529_842, abs=200)
+
+
+def test_great_britain_grid_references_are_used_as_supplied(tmp_path: Path) -> None:
+    table = read_onspd(write_with_coords(tmp_path, [GB_ROW]))
+
+    assert table.eastings[0] == 428_111
+    assert table.northings[0] == 435_817
+
+
+def test_a_grid_reference_that_contradicts_its_own_coordinates_is_refused(
+    tmp_path: Path,
+) -> None:
+    # The check that would have caught the Northern Ireland bug on day one.
+    # A grid reference far from where its latitude and longitude say it is
+    # means the file's projection is not what we think it is.
+    liar = "LS6 1AA,,100000,100000,0,E00057834,53.817875,-1.574508"
+
+    with pytest.raises(OnspdSchemaError, match="grid reference"):
+        read_onspd(write_with_coords(tmp_path, [liar]))

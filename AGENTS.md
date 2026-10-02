@@ -146,6 +146,19 @@ Consequences, all enforced:
 
 ## Known traps
 
+**ONSPD gives Northern Ireland grid references in the IRISH GRID.** Read as British
+National Grid they place Belfast in the Derbyshire Peak District. Every range check
+passed, because Irish Grid values sit comfortably inside the OSGB envelope: 61% of NI
+postcodes landed within a kilometre of a real GB postcode, `BT71 7AL` sat exactly on top
+of `LL26 0BH` in North Wales, and the graph carried thousands of false edges between
+Belfast and Liverpool. The reader now projects NI latitude and longitude into BNG with
+pyproj, and **checks every GB grid reference against its own latitude and longitude**,
+refusing the file if they disagree. That check is the one that would have caught this on
+day one, and it is why pyproj is a required dependency rather than an optional one.
+
+The bug survived every test and every data validation. It was found by drawing a map and
+noticing Northern Ireland was missing. Draw the figure.
+
 **ONSPD column names change between releases.** The August 2026 release uses
 `east1m`/`north1m`, not the `oseast1m`/`osnrth1m` of earlier ones; also `oa21cd`,
 `lsoa21cd`, `msoa21cd`, `lad26cd`, `ruc21ind`, `usrtypind`, `gridind`. Values are quoted.

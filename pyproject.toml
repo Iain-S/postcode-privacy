@@ -20,7 +20,10 @@ classifiers = [
 ]
 # click is the only CLI dependency and pulls nothing transitively. The
 # command is part of the documented interface, so it is not behind an extra.
-dependencies = ["numpy>=1.26", "scipy>=1.11", "click>=8.1"]
+# pyproj is required, not optional: ONSPD supplies Northern Ireland grid
+# references in the Irish Grid, and reading them as British National Grid
+# silently places Belfast in Derbyshire. See AGENTS.md.
+dependencies = ["numpy>=1.26", "scipy>=1.11", "click>=8.1", "pyproj>=3.6"]
 
 [project.optional-dependencies]
 frames = ["pandas>=2.0", "pyarrow>=14"]
@@ -29,6 +32,12 @@ frames = ["pandas>=2.0", "pyarrow>=14"]
 postcode-privacy = "postcode_privacy.cli:main"
 
 [dependency-groups]
+# Figure generation. Separate from docs because the figures are produced by
+# hand from data that cannot be committed, and the site builds from the
+# committed outputs without needing these.
+figures = [
+    "matplotlib>=3.8",
+]
 docs = [
     "mkdocs>=1.6",
     "mkdocs-material>=9.5",

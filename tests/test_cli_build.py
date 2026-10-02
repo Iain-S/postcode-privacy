@@ -8,7 +8,27 @@ from click.testing import CliRunner, Result
 from postcode_privacy import load_graph
 from postcode_privacy.cli import main
 
-HEADER = "pcds,doterm,east1m,north1m,usrtypind,oa21cd"
+HEADER = "pcds,doterm,east1m,north1m,usrtypind,oa21cd,lat,long"
+
+
+def _with_coords(row: str) -> str:
+    """Append latitude and longitude consistent with the row's grid reference.
+
+    Derived rather than written by hand, so a fixture cannot drift from the
+    invariant the reader now enforces: a grid reference must agree with its own
+    coordinates. Fixtures encoding a wrong assumption is the failure mode this
+    repository watches for.
+    """
+    from pyproj import Transformer
+
+    fields = row.split(",")
+    easting, northing = fields[2].strip(), fields[3].strip()
+    if not easting or not northing:
+        return row + ",,"
+    to_wgs84 = Transformer.from_crs("EPSG:27700", "EPSG:4326", always_xy=True)
+    longitude, latitude = to_wgs84.transform(float(easting), float(northing))
+    return f"{row},{latitude:.6f},{longitude:.6f}"
+
 
 # Nine postcodes spread out enough to triangulate, one terminated, one large
 # user, so the build exercises every exclusion path at once.
@@ -28,7 +48,7 @@ ROWS = [
 
 def onspd(tmp_path: Path) -> Path:
     path = tmp_path / "onspd.csv"
-    path.write_text("\n".join([HEADER, *ROWS]) + "\n")
+    path.write_text("\n".join([HEADER, *(_with_coords(r) for r in ROWS)]) + "\n")
     return path
 
 
