@@ -9,6 +9,7 @@ description = "Differential privacy for UK postcodes, measured in graph hops rat
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Iain Stenson", email = "istenson@turing.ac.uk" }]
 keywords = ["differential-privacy", "postcodes", "geoprivacy", "uk", "anonymisation"]
 classifiers = [

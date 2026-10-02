@@ -1,7 +1,7 @@
 site_name: postcode-privacy
 site_description: Differential privacy for UK postcodes, measured in graph hops rather than metres
-site_url: https://istenson.github.io/postcode-privacy/
-repo_url: https://github.com/istenson/postcode-privacy
+site_url: https://iain-s.github.io/postcode-privacy/
+repo_url: https://github.com/Iain-S/postcode-privacy
 edit_uri: edit/main/docs/
 
 theme:
