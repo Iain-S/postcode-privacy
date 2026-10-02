@@ -144,6 +144,15 @@ class HopMechanism:
         # part -- expanding the ball -- is paid once per postcode, not per person.
         self._cache: dict[int, Distribution] = {}
 
+    def clear_cache(self) -> None:
+        """Forget cached distributions.
+
+        A cached distribution over a national graph costs megabytes, so code
+        that visits each postcode once -- reporting and calibration -- must be
+        able to drop them rather than accumulate gigabytes.
+        """
+        self._cache.clear()
+
     def distribution(self, postcode: str) -> Distribution:
         """The exact output distribution for ``postcode``."""
         node = self.graph.index_of(postcode)

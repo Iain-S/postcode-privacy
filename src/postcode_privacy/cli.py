@@ -35,8 +35,18 @@ from postcode_privacy.graph.onspd import read_onspd
 from postcode_privacy.graph.postcode_graph import PostcodeGraph
 from postcode_privacy.graph.prior import population_prior
 from postcode_privacy.graph.provenance import Provenance
+from postcode_privacy.mechanism.calibrate import (
+    UnknownTargetError,
+    calibrate,
+    displacement_summary,
+    sample_postcodes,
+)
 from postcode_privacy.mechanism.mechanism import ON_ERROR_POLICIES, HopMechanism
 from postcode_privacy.mechanism.prf import KEY_BYTES, Key
+from postcode_privacy.postcodes import (
+    LargeUserPostcodeError,
+    UnknownPostcodeError,
+)
 
 # Distinguishable so a pipeline can branch without parsing stderr.
 EXIT_USAGE = 2
@@ -405,3 +415,150 @@ def build(
     manifest_path = out.with_suffix(".manifest.json")
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
     click.echo(f"wrote {out} and {manifest_path}", err=True)
+
+
+@main.command()
+@inline_key_option
+@click.option(
+    "--graph",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
+@click.option("--epsilon", required=True, type=float)
+@click.option("--radius", type=int, default=None)
+@click.option("--postcode", default=None, help="Report on one postcode.")
+@click.option("--sample", type=int, default=None, help="Report on N random postcodes.")
+@click.option("--seed", type=int, default=0, show_default=True)
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+def report(
+    graph: Path,
+    epsilon: float,
+    radius: int | None,
+    postcode: str | None,
+    sample: int | None,
+    seed: int,
+    as_json: bool,
+) -> None:
+    """Show what an epsilon actually does, before you release anything."""
+    if (postcode is None) == (sample is None):
+        raise click.UsageError("give exactly one of --postcode POSTCODE or --sample N.")
+
+    mechanism = HopMechanism(load_graph(graph), epsilon=epsilon, radius=radius)
+
+    if postcode is not None:
+        try:
+            summary = displacement_summary(mechanism, postcode)
+        except (UnknownPostcodeError, LargeUserPostcodeError) as error:
+            # The postcode came from this command line, not from a dataset, so
+            # repeating it here leaks nothing the operator did not just type.
+            raise click.ClickException(str(error)) from error
+        payload = {
+            "postcode": summary.postcode,
+            "epsilon": epsilon,
+            "radius": mechanism.radius,
+            "self_probability": summary.self_probability,
+            "teleport_probability": summary.teleport_probability,
+            "ball_size": summary.ball_size,
+            "mean_km": summary.mean_km,
+            "median_km": summary.median_km,
+            "p95_km": summary.p95_km,
+        }
+        text = (
+            f"{summary.postcode} at epsilon {epsilon} per hop, "
+            f"radius {mechanism.radius} hops\n"
+            f"  displacement: median {summary.median_km:.2f} km, "
+            f"p95 {summary.p95_km:.2f} km, mean {summary.mean_km:.2f} km\n"
+            f"  self probability: {summary.self_probability:.3%} "
+            "(chance the true postcode is handed back)\n"
+            f"  teleport probability: {summary.teleport_probability:.2g}\n"
+            f"  ball size: {summary.ball_size:,} postcodes\n"
+            "  displacement excludes teleports, which are counted separately."
+        )
+    elif sample is not None:
+        summaries = []
+        for chosen in sample_postcodes(mechanism.graph, size=sample, seed=seed):
+            summaries.append(displacement_summary(mechanism, chosen))
+            mechanism.clear_cache()
+        medians = [s.median_km for s in summaries]
+        payload = {
+            "epsilon": epsilon,
+            "radius": mechanism.radius,
+            "sample_size": len(summaries),
+            "seed": seed,
+            "median_km": float(np.median(medians)),
+            "p95_km": float(np.quantile(medians, 0.95)),
+            "max_km": float(np.max(medians)),
+            "max_self_probability": max(s.self_probability for s in summaries),
+            "max_teleport_probability": max(s.teleport_probability for s in summaries),
+        }
+        text = (
+            f"{len(summaries)} postcodes sampled (seed {seed}) at epsilon "
+            f"{epsilon} per hop, radius {mechanism.radius} hops\n"
+            f"  median displacement: {payload['median_km']:.2f} km "
+            f"(p95 {payload['p95_km']:.2f}, max {payload['max_km']:.2f})\n"
+            f"  worst self probability: {payload['max_self_probability']:.3%}\n"
+            f"  worst teleport probability: "
+            f"{payload['max_teleport_probability']:.2g}\n"
+            "  spread is reported because a national average hides exactly the\n"
+            "  urban/rural disparity this design exists to address."
+        )
+
+    click.echo(json.dumps(payload, indent=2) if as_json else text)
+
+
+@main.command(name="calibrate")
+@inline_key_option
+@click.option(
+    "--graph",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
+@click.option("--target", required=True, help="What to solve for.")
+@click.option("--value", required=True, type=float, help="The value to hit.")
+@click.option(
+    "--sample",
+    type=int,
+    default=16,
+    show_default=True,
+    help="Postcodes to solve against. Cost scales with this; 16 takes minutes "
+    "on a national graph, 64 takes well over an hour.",
+)
+@click.option("--seed", type=int, default=0, show_default=True)
+@click.option("--json", "as_json", is_flag=True)
+def calibrate_command(
+    graph: Path, target: str, value: float, sample: int, seed: int, as_json: bool
+) -> None:
+    """Solve for the epsilon that meets a utility or privacy target."""
+    try:
+        result = calibrate(
+            load_graph(graph),
+            target=target,
+            value=value,
+            sample_size=sample,
+            seed=seed,
+            progress=lambda step, total: click.echo(
+                f"  solving: step {step}/{total}", err=True
+            ),
+        )
+    except UnknownTargetError as error:
+        raise click.UsageError(str(error)) from error
+
+    payload = asdict(result)
+    unreachable = (
+        ""
+        if result.reached
+        else (
+            "\n  WARNING: this target is not reachable on this graph. The epsilon\n"
+            "  below is the closest the mechanism can get, not the one you asked for."
+        )
+    )
+    text = (
+        f"target: {result.target} = {result.requested}{unreachable}\n"
+        f"  epsilon: {result.epsilon:.4g} per hop\n"
+        f"  achieved: {result.achieved:.4g} (p95 across the sample "
+        f"{result.p95:.4g})\n"
+        f"  sample: {result.sample_size} postcodes, seed {seed}\n"
+        "  this is a property of the sample, not of the country: protection\n"
+        "  varies by location, so check --sample on your own population."
+    )
+    click.echo(json.dumps(payload, indent=2) if as_json else text)
