@@ -94,6 +94,23 @@ class Distribution:
         """
         return int(self.prior[self.source]) * self.powers[0] / self.total_weight
 
+    def probability_of(self, node: int) -> float:
+        """The probability of one node, without materialising the rest.
+
+        ``as_array`` allocates a vector the size of the country, which is fine
+        for inspection but not for an adversary simulation that needs one entry
+        per candidate. Nodes beyond the cap share the floor weight, so a node
+        absent from every shell is a tail node rather than an impossible one.
+        """
+        for hop, nodes in enumerate(self.shell_nodes):
+            position = int(np.searchsorted(nodes, node))
+            if position < len(nodes) and int(nodes[position]) == node:
+                power = self.powers[hop]
+                break
+        else:
+            power = self.powers[self.radius]
+        return int(self.prior[node]) * power / self.total_weight
+
     def as_array(self, n_nodes: int) -> npt.NDArray[np.float64]:
         """Probabilities over every node. For inspection and tests, not sampling."""
         weights = np.full(n_nodes, float(self.powers[self.radius]))

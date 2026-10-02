@@ -160,6 +160,13 @@ like-for-like.
 `InvalidPostcode`). Ruff's N818 enforces this; the spec was changed to match rather than
 carrying a lint exemption.
 
+**A numpy `int64` multiplied by a shell power silently wraps.** The mechanism's
+weights are arbitrary-precision Python integers, and `prior[nodes].sum()` is an
+`np.int64`. Multiplying the two gives a wrapped `int64`, not a wide integer, and the
+symptom is an `OverflowError` somewhere else entirely or — worse — a plausible wrong
+number. Convert with `int(...)` before touching `powers`. This bit `area_preservation`
+on first write.
+
 **Write `np.min(x)`, not `x.min()`.** The numpy stubs resolve the no-argument overload
 to `NDArray[object_]` and the type checker rejects it. This has recurred three times.
 

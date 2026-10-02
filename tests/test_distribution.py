@@ -144,3 +144,55 @@ def test_a_distribution_costs_memory_in_proportion_to_its_ball() -> None:
             f"a distribution owns an array of length {len(array)} but its ball "
             f"holds only {ball_size} nodes"
         )
+
+
+def test_the_probability_of_one_node_matches_the_full_array() -> None:
+    # A single-node lookup exists because the adversary code needs one entry per
+    # candidate, and allocating a national vector per candidate is not viable.
+    # It must agree exactly with the array it is a shortcut for.
+    import numpy as np
+
+    from postcode_privacy.graph.adjacency import Adjacency
+    from postcode_privacy.mechanism.hop import distribution
+
+    n = 12
+    edges = np.array([[i, i + 1] for i in range(n - 1)], dtype=np.int64)
+    prior = np.arange(1, n + 1, dtype=np.int64)
+    dist = distribution(
+        Adjacency.from_edges(edges, n_nodes=n),
+        prior,
+        source=4,
+        epsilon=1.0,
+        radius=3,
+    )
+
+    full = dist.as_array(n)
+    for node in range(n):
+        assert dist.probability_of(node) == pytest.approx(full[node])
+
+
+@pytest.mark.parametrize("seed", range(10))
+def test_shell_node_arrays_are_sorted(seed: int) -> None:
+    # probability_of and contains both binary-search these, so sortedness is a
+    # load-bearing property of the BFS rather than a happy accident.
+    import numpy as np
+
+    from postcode_privacy.graph.adjacency import Adjacency
+    from postcode_privacy.mechanism.hop import distribution
+
+    rng = np.random.default_rng(seed)
+    n = int(rng.integers(8, 40))
+    edges = np.array([[i, i + 1] for i in range(n - 1)], dtype=np.int64)
+    extra = rng.integers(0, n, size=(10, 2))
+    edges = np.vstack([edges, extra[extra[:, 0] != extra[:, 1]]])
+
+    dist = distribution(
+        Adjacency.from_edges(edges, n_nodes=n),
+        np.ones(n, dtype=np.int64),
+        source=int(rng.integers(0, n)),
+        epsilon=1.0,
+        radius=3,
+    )
+
+    for shell in dist.shell_nodes:
+        assert np.all(np.diff(shell) > 0)
