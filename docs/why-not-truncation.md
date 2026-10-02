@@ -22,24 +22,56 @@ of that denial is exactly \(\varepsilon\).
 
 ## Crowd size is wildly uneven, and worst where it is needed most
 
-Truncation claims to treat everyone the same. It does not.
+Truncation claims to treat everyone the same. It does not, and the gap is larger than
+it is usually described. Measured across all 2,818 outward-code districts in the August
+2026 build:
 
-A postcode district in central London may contain tens of thousands of residents. A rural
-district in the Highlands may contain a few hundred, spread over hundreds of square
-kilometres. Truncating both to the district applies the same *operation* and delivers
-radically different *protection* — by orders of magnitude — while offering no way to
-measure the difference, let alone control it.
+| residents per district | |
+|---|---|
+| smallest | **2** (PH30) |
+| 1st percentile | 101 |
+| median | 21,344 |
+| 99th percentile | 77,018 |
+| largest | 169,419 (CR0, Croydon) |
+
+That is a factor of **764 between the 1st and 99th percentiles**, and roughly 85,000
+between the extremes. The same operation is applied to everyone and the protection
+delivered differs by nearly five orders of magnitude, with no way to measure the
+difference from the released value, let alone control it.
+
+### For nine districts, truncation does nothing at all
+
+Nine outward codes contain exactly one postcode: `PA62`, `PA63`, `PA74`, `PH30`, `PH42`,
+`PH43`, `PH44`, `TR22`, `TR23` — Mull and Iona, Corrour, the Small Isles, and the Isles
+of Scilly.
+
+For a resident of any of them, truncating the postcode to its outward code **discloses
+the exact postcode unit**. The operation removes no information whatsoever. `PH30` goes
+further: it is a single postcode with a census population of two.
+
+Nobody intends this. It is what happens when a method has no quantity to check itself
+against — there is no number truncation computes that would have flagged it.
+
+Just under 1% of districts hold fewer than a hundred residents, and 871,823 people —
+1.3% of the country — live in a district of fewer than five thousand.
+
+### Against which, the mechanism
 
 Measuring privacy in hops attacks this directly: a hop is a step to a neighbouring
-postcode, so it covers a comparable number of people wherever you are. The displacement
-in metres varies enormously; the exposure does not.
+postcode, and postcode units are roughly equally sized by construction, so a hop covers
+a comparable number of people wherever you are. Measured at \(\varepsilon = 1\):
 
-!!! note "Figure to come"
-    The chart that settles this is crowd size — the number of residents sharing your
-    released value — for truncation and for this mechanism, split by urban and rural.
-    It will be generated from the August 2026 ONSPD build once the mechanism is
-    implemented. It is not shown here because the numbers do not exist yet, and a
-    privacy library is the last place an illustrative figure belongs.
+| | urban | rural | ratio |
+|---|---|---|---|
+| self-probability | 2.269% | 2.204% | **1.03×** |
+| truncation crowd (p1 → p99) | — | — | 764× |
+
+Exposure varies by 3%. Truncation's varies by a factor of several hundred. That
+comparison is the case for this library, and it is measured on both sides rather than
+argued.
+
+The displacement in metres varies enormously — 0.49 km median urban against 2.62 km
+rural — and that is the intended consequence, not a defect.
 
 ## The utility loss is uneven too, in the same direction
 

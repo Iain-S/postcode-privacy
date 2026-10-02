@@ -23,6 +23,39 @@ techniques are not competing with this library for the same job.
 
 The column that matters is the middle one, and it is the reason the formalism exists.
 
+## What epsilon is "equivalent" to truncating a postcode?
+
+A fair question with no exact answer, and the reason is the point. Truncation is not
+differential privacy, so no \(\varepsilon\) makes the two the same object: truncation
+releases a fact with certainty, and offers no deniability at any crowd size. Equivalence
+can only be stated under a chosen yardstick.
+
+The yardstick used here is **what an analyst loses**. Told only the outward code, their
+best guess is a postcode drawn from that district, so their expected error is the
+population-weighted mean distance from the truth to such a postcode. The equivalent
+\(\varepsilon\) is the one at which the mechanism displaces people about that far.
+
+Measured over twenty-four sampled postcodes on the August 2026 build:
+
+| | min | median | max | spread |
+|---|---|---|---|---|
+| urban | 0.229 | 0.426 | 0.664 | 2.9× |
+| rural | 0.205 | 0.574 | 1.083 | 5.3× |
+| overall | 0.205 | **0.463** | 1.083 | 5.3× |
+
+So **\(\varepsilon \approx 0.46\) per hop costs an analyst about what truncation costs
+them** — on average. Locally it ranges from 0.21 in rural Shropshire to 1.08 in Dundee,
+because what truncation destroys varies from 0.9 km of positional accuracy in a dense
+Birmingham district to 16.4 km in a sparse Shropshire one.
+
+!!! warning "This comparison flatters truncation"
+    It equates the two on **utility cost only**. It says nothing about privacy, and
+    every available yardstick is generous to truncation in the same way: all of them
+    ignore that its released fact is certain, and that for nine districts it discloses
+    the postcode unit exactly. Do not read \(\varepsilon = 0.46\) as "truncation is
+    worth \(\varepsilon = 0.46\) of privacy". It is not worth any \(\varepsilon\),
+    because it is not that kind of thing.
+
 ## Small-number suppression, and why differencing defeats it
 
 The standard move is to withhold any cell below a threshold — commonly five or ten.
