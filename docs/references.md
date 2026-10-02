@@ -34,9 +34,30 @@ Their motivation is also the rigorous form of the argument for using a graph at 
 Euclidean geo-indistinguishability *overstates* the privacy it delivers, because a real
 adversary knows the network and discounts outputs that are not reachable.
 
-Their graph is a road network, which handles water correctly and without a parameter,
-since a crossing exists only where a bridge does. That remains the principled answer to
-the estuary-shortcut problem this library currently leaves open.
+### What GG-I does and does not cover
+
+Read in full rather than from the abstract, because the distinction decides what this
+library may claim.
+
+Their secret space is the set of **road-network junctions**, and their metric is
+shortest path **weighted by road segment length** — effectively metres along roads. The
+Graph-Exponential Mechanism is
+
+> `Pr(GEM(v) = o) = α(v) · exp(−ε/2 · d_s(v, o))`, with `α(v)` the normaliser.
+
+the same exponential form this library uses, with no prior term: their user prior `πu`
+appears only inside an optimisation objective, never in the mechanism.
+
+They impose **no cap and no truncation**. The paper notes that sampling becomes
+difficult when the vertex count is large and points at consistent weighted sampling, but
+GEM itself is unmodified. Their answer to tractability is a greedy algorithm that shrinks
+the *output range* `W` — which vertices may be emitted at all — subject to a utility
+constraint. That is a **global** restriction, identical for every input, so it preserves
+the guarantee; it is a different solution from capping the metric, not the same one.
+
+Repeated releases, composition and trajectories are explicitly out of scope: "a user
+sends the location once". Floating-point arithmetic is not discussed. Their evaluation
+graphs have 168 and 1,155 nodes, with synthetic lattices up to about 5,000.
 
 **The exponential mechanism** itself:
 
@@ -46,20 +67,25 @@ the estuary-shortcut problem this library currently leaves open.
 
 Stated narrowly and honestly, against the above:
 
-1. **UK postcode units as the secret space**, with the graph derived from ONSPD
-   centroids rather than a road network.
-2. **A population-weighted prior**, so outputs land where people actually live.
+1. **Hop count over postcode units**, rather than weighted road distance over
+   junctions. This is the substantive departure. Road distance in metres still gives a
+   Sutherland resident far weaker protection than a Glaswegian for the same ε, because
+   their nearest neighbour genuinely is further away. Counting hops between
+   roughly equally-sized postcode units equalises *exposure* instead of distance —
+   measured here at a self-probability of 2.20% rural against 2.27% urban.
+2. **A population-weighted prior inside the mechanism**, so outputs land where people
+   actually live. GEM has no prior term.
 3. **The capped metric `min(d, R)`**, which keeps the mechanism exactly computable over
-   ~1.7M nodes while remaining pure DP. Takagi et al. address scalability differently —
-   by a greedy approximation to an optimisation problem — rather than by truncating the
-   mechanism, so this appears to be distinct. *This must be confirmed by reading both
-   papers in full before the methods note claims it.*
+   1.7M nodes while remaining pure DP. Takagi et al. impose no cap and leave large-graph
+   sampling as an open difficulty; their greedy algorithm shrinks the global output
+   range instead, which is a different device. Their largest real graph has 1,155 nodes.
 4. **Keyed-deterministic perturbation**, so repeated releases of one subject cost one ε.
-5. **Integer weights**, closing the floating-point leakage channel.
+   Repeated release is explicitly out of scope in their work.
+5. **Integer weights**, closing the floating-point leakage channel. Not discussed there.
 
-None of these is the graph idea. If a single sentence is needed: *this is GG-I applied to
-UK postcodes, with an exactly-computable capped metric and a keyed deterministic
-sampler.*
+None of these is the graph idea, which is theirs. If a single sentence is needed:
+*this is GG-I applied to UK postcodes, with hop count in place of road distance, an
+exactly-computable capped metric, and a keyed deterministic sampler.*
 
 ## Supporting results
 
