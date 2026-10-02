@@ -831,6 +831,7 @@ name = "postcode-privacy"
 version = "0.1.0.dev0"
 source = { editable = "." }
 dependencies = [
+    { name = "click" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -860,6 +861,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
+    { name = "click", specifier = ">=8.1" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "pandas", marker = "extra == 'frames'", specifier = ">=2.0" },
     { name = "pyarrow", marker = "extra == 'frames'", specifier = ">=14" },

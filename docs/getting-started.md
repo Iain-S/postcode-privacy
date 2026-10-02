@@ -1,8 +1,10 @@
 # Getting started
 
 !!! warning "Pre-alpha"
-    None of this runs yet. It documents the intended interface so that it can be argued
-    with before it is built.
+    `keygen` and `perturb` work. `build`, `report` and `calibrate` are not implemented
+    yet, so you cannot currently produce the graph artefact that `perturb` needs — the
+    quickstart below is not runnable end to end. Those sections document the intended
+    interface so that it can be argued with before it is built.
 
 ## Install
 
@@ -54,8 +56,11 @@ output. That is what stops repeated releases from leaking more than one.
 
 ```bash
 postcode-privacy keygen -o secret.key
-chmod 600 secret.key
 ```
+
+The file is created mode `0400` — readable only by you, and never briefly wider than
+that. `keygen` refuses to overwrite an existing key, because replacing one orphans every
+release made with the old key: those outputs can never be reproduced or explained again.
 
 !!! danger "The key is as sensitive as the raw data"
     Anyone holding both the key and the graph can invert the perturbation exactly and
@@ -80,10 +85,34 @@ Every run prints the privacy parameters actually used to stderr, so they end up 
 pipeline logs rather than being invisible:
 
 ```
-graph: uk.ppg (ONSPD_AUG_2026, 1,714,392 live postcodes)
-epsilon: 0.8 per hop   radius: 60 hops   teleport probability: 4.1e-07
-prior: population      subjects: 48,210  distinct postcodes: 31,884
+graph: ONSPD_AUG_2026_UK.csv
+epsilon: 1.0 per hop   radius: 62 hops
+max teleport probability: 2.2e-09
+rows: 4 in, 4 written, 0 failed
+wrote patients_dp.csv and patients_dp.manifest.json
 ```
+
+### The manifest
+
+Alongside the output, `perturb` always writes a JSON manifest recording the graph and
+its source hash, the epsilon and radius used, the highest teleport probability any
+record was exposed to, the error policy, and the row counts. Standard error gets lost;
+a file does not, and this is what makes a release auditable and reproducible afterwards.
+
+### Diagnostics name rows, never postcodes
+
+If a record cannot be perturbed, the error identifies it by row number:
+
+```
+Error: 2 row(s) could not be perturbed: row 1, 3. Postcodes are not shown, so that
+source data does not reach the logs; look the rows up in the input.
+```
+
+This is deliberate. Naming the offending value would copy real postcodes out of the
+dataset and into pipeline logs, which are usually less well protected than the data
+they describe. `--on-error drop` removes such rows, `--on-error null` keeps them with an
+empty output, and both are recorded in the manifest. A run that dropped or nulled rows
+exits with status 3, so a pipeline can branch on it without parsing text.
 
 The `--subject-col` is required, not optional. Without a stable subject identifier the
 mechanism cannot keep a person's output consistent, and repeated releases would degrade

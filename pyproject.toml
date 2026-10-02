@@ -18,7 +18,9 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Information Analysis",
     "Typing :: Typed",
 ]
-dependencies = ["numpy>=1.26", "scipy>=1.11"]
+# click is the only CLI dependency and pulls nothing transitively. The
+# command is part of the documented interface, so it is not behind an extra.
+dependencies = ["numpy>=1.26", "scipy>=1.11", "click>=8.1"]
 
 [project.optional-dependencies]
 frames = ["pandas>=2.0", "pyarrow>=14"]
