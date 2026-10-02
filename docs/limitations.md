@@ -27,16 +27,66 @@ needed is not in the data.**
 An adaptive length heuristic is implemented and tested, but it is **off by default**,
 because it is a guess with no ground truth to tune against.
 
-**The real fix** is to supply the missing information, which is what the
-Geo-Graph-Indistinguishability work does by using a road network: you can only cross
-water where a bridge exists. OS Open Roads is available under the Open Government Licence
-and is the natural basis for a future version. The cost is that hop density would then
-follow junction density rather than population, which is a different trade, not a free
-improvement.
+**The real fix** needs the missing information, and the obvious candidate — replacing
+the graph with a road network, as the Geo-Graph-Indistinguishability work does — is
+less attractive here than it first appears.
+
+In this library the nodes *are* postcodes, so one hop means "one postcode over", which
+is close to "about fifteen households over" because small-user postcodes are roughly
+equal-sized by construction. That is precisely why exposure comes out flat across urban
+and rural in the table above. On a road network the nodes are junctions, so hop count
+tracks junction density rather than population — and a cul-de-sac estate and an empty
+moorland road have junction densities unrelated to how many people live along them.
+Replacing the graph would risk the one property that has been measured and shown to
+work.
+
+The better use of road data is to **prune rather than replace**: keep postcodes as
+nodes, and delete the Delaunay edges that do not correspond to a feasible short journey.
+The most promising test is a *detour ratio* — road distance divided by straight-line
+distance — because it is a measurement rather than a classification, and it is exactly
+what separates an estuary from a moor. Across the moor the straight line is walkable;
+across the estuary the detour to the nearest bridge is enormous. It would also catch
+railway cuttings, uncrossable motorways and military ranges without naming any of them.
+
+### Measured
+
+At \(\varepsilon = 1\), twenty-five sampled postcodes per group, on the August 2026
+build of 1,725,511 nodes:
+
+| group | median | p95 | same LSOA | self-probability |
+|---|---|---|---|---|
+| urban | 0.49 km | 9.86 km | 28.9% | 2.27% |
+| rural | 2.62 km | 260.27 km | 26.6% | 2.20% |
+
+Read the last two columns first, because they are the design working. Exposure is
+effectively equal — a postcode is handed back unchanged about as often in Sutherland as
+in Leeds, across a four-order-of-magnitude difference in how much ground a postcode
+covers. That is the whole claim the hop metric makes.
+
+The rural **p95 of 260 km** is the defect, and it is worth being careful about its
+cause. Rural sparsity alone is the design behaving correctly — if there are few
+postcodes nearby, the nearest ones genuinely are far away. The long tail is something
+else, and the measurement below narrows it down.
+
+### The floor no graph can fix
+
+A measurement on the Isle of Lewis gave a median displacement of 308 km. It is tempting
+to read that as a bug, and it is worth being clear that it is not.
+
+That number is the mechanism honestly reporting that **there are not many people near a
+Lewis resident**. Remove the sea-crossing edges and Lewis becomes its own component,
+where a resident is hidden among a few thousand island postcodes instead of being sent
+to the mainland. That is not better privacy — it is the same limited privacy, now
+visible rather than disguised as a long journey.
+
+Island and remote residents face a genuine privacy–utility floor, because it is a
+property of where people live rather than of the edges we draw. No graph construction
+removes it. What a better graph would do is make it *visible*, which is an argument for
+fixing the artefact, not for pretending the floor is not there.
 
 !!! note "Figure to come"
-    A map of the affected edges around the Thames and Humber, with the size of the
-    affected population, will be added once a full graph has been built.
+    A map of the affected edges around the Thames and Humber, with the number of
+    postcodes touching one, will be added once the measurement is complete.
 
 ## People who move house
 
