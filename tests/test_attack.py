@@ -10,7 +10,12 @@ import numpy as np
 import pytest
 
 from postcode_privacy import HopMechanism, Key, PostcodeGraph
-from postcode_privacy.evaluate.attack import averaging_attack, posterior
+from postcode_privacy.evaluate.attack import (
+    independent_releases,
+    keyed_releases,
+    posterior,
+    posterior_after,
+)
 
 N = 60
 SPACING_M = 500
@@ -49,39 +54,57 @@ def test_a_larger_epsilon_gives_the_attacker_a_better_guess() -> None:
     assert confidences == sorted(confidences)
 
 
-def test_averaging_many_independent_releases_recovers_the_truth() -> None:
-    # The attack the keyed design exists to prevent. With fresh randomness per
-    # release, the mean of enough outputs converges on the true location.
+def test_more_independent_releases_make_the_attacker_more_confident() -> None:
+    # The accumulation keyed determinism exists to prevent. Each fresh draw is
+    # independent evidence about the same secret, so the posterior sharpens.
     mechanism = HopMechanism(line(), epsilon=0.5)
 
-    result = averaging_attack(mechanism, "A030 1AA", releases=400, keyed=False, seed=0)
+    confidences = []
+    for count in (1, 5, 40):
+        outputs = independent_releases(mechanism, "A030 1AA", count=count, seed=3)
+        belief = posterior_after(mechanism, outputs)
+        confidences.append(max(belief.values()))
 
-    assert result.error_km < 1.0
+    assert confidences == sorted(confidences)
+    assert confidences[-1] > confidences[0]
 
 
-def test_the_keyed_mechanism_gives_the_attacker_nothing_extra() -> None:
-    # The same subject always maps to the same output, so four hundred
-    # observations are worth exactly one and averaging cannot help.
+def test_repeated_keyed_releases_add_nothing() -> None:
+    # Every keyed release of one subject is the same value, so an attacker who
+    # knows the scheme has one observation however many times it is published.
+    # Forty must leave them exactly where one did.
     mechanism = HopMechanism(line(), epsilon=0.5)
     key = Key.from_bytes(b"\x11" * 32)
+    once = keyed_releases(mechanism, "A030 1AA", count=1, key=key)
+    many = keyed_releases(mechanism, "A030 1AA", count=40, key=key)
 
-    many = averaging_attack(
-        mechanism, "A030 1AA", releases=400, keyed=True, key=key, seed=0
+    assert set(many) == set(once)
+    assert posterior_after(mechanism, many, independent=False) == posterior_after(
+        mechanism, once, independent=False
     )
-    one = averaging_attack(
-        mechanism, "A030 1AA", releases=1, keyed=True, key=key, seed=0
-    )
-
-    assert many.distinct_outputs == 1
-    assert many.error_km == one.error_km
 
 
-def test_the_attack_is_reproducible() -> None:
+def test_releases_are_reproducible() -> None:
     # A privacy claim demonstrated by a number that changes between runs is
     # not a demonstration.
     mechanism = HopMechanism(line(), epsilon=0.5)
 
-    first = averaging_attack(mechanism, "A030 1AA", releases=50, keyed=False, seed=7)
-    second = averaging_attack(mechanism, "A030 1AA", releases=50, keyed=False, seed=7)
+    first = independent_releases(mechanism, "A030 1AA", count=20, seed=7)
+    second = independent_releases(mechanism, "A030 1AA", count=20, seed=7)
 
-    assert first.error_km == second.error_km
+    assert first == second
+
+
+def test_an_attacker_ignorant_of_the_scheme_overestimates_their_own_certainty() -> None:
+    # Worth stating because it is a trap, not a safety margin. Treating forty
+    # identical keyed releases as forty samples makes the attacker far more
+    # confident than the evidence supports: they are wrong, not cautious. The
+    # library is judged against the adversary who knows the scheme.
+    mechanism = HopMechanism(line(), epsilon=0.5)
+    key = Key.from_bytes(b"\x11" * 32)
+    many = keyed_releases(mechanism, "A030 1AA", count=40, key=key)
+
+    naive = max(posterior_after(mechanism, many, independent=True).values())
+    informed = max(posterior_after(mechanism, many, independent=False).values())
+
+    assert naive > informed
