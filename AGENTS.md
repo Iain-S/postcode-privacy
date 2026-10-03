@@ -156,8 +156,18 @@ pyproj, and **checks every GB grid reference against its own latitude and longit
 refusing the file if they disagree. That check is the one that would have caught this on
 day one, and it is why pyproj is a required dependency rather than an optional one.
 
-The bug survived every test and every data validation. It was found by drawing a map and
-noticing Northern Ireland was missing. Draw the figure.
+The bug survived every test and every data validation, and was found by drawing a map
+and noticing Northern Ireland was missing. But it did not have to be found that way:
+**the ONSPD User Guide, which ships inside the archive, documents it in the description
+of the very column we were reading.** `EAST1M` is described as "blank for postcodes in
+the Channel Islands and the Isle of Man. Grid references for postcodes in Northern
+Ireland relate to the Irish National Grid." Nobody read it.
+
+Two lessons, and the second is the cheaper one. Draw the figure — but first read the
+documentation that came with the data. The same paragraph also explains why Channel
+Islands and Isle of Man postcodes are absent from the graph: they carry no grid
+reference at all, so the reader drops them as `no_grid_reference`. That is correct, and
+it is worth knowing it is intended rather than accidental.
 
 **ONSPD column names change between releases.** The August 2026 release uses
 `east1m`/`north1m`, not the `oseast1m`/`osnrth1m` of earlier ones; also `oa21cd`,
