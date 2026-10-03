@@ -196,3 +196,46 @@ def test_shell_node_arrays_are_sorted(seed: int) -> None:
 
     for shell in dist.shell_nodes:
         assert np.all(np.diff(shell) > 0)
+
+
+@pytest.mark.parametrize(("radius", "epsilon"), [(2, 0.5), (4, 0.8), (6, 2.0)])
+def test_the_closed_form_published_in_the_methods_note_matches_the_code(
+    radius: int, epsilon: float
+) -> None:
+    # docs/methods.md states the normaliser as
+    #     Z = sum_{h<R} q^h pi(S_h)  +  q^R (Pi - pi(B_R))
+    # and the teleport probability as the second term over Z. A methods note
+    # that drifts from its implementation is worse than none, so the published
+    # formula is evaluated here independently and required to agree.
+    import math
+
+    import numpy as np
+
+    from postcode_privacy.graph.adjacency import Adjacency
+    from postcode_privacy.mechanism.hop import distribution
+
+    n, source = 14, 6
+    edges = np.array([[i, i + 1] for i in range(n - 1)], dtype=np.int64)
+    prior = np.arange(1, n + 1, dtype=np.int64)
+    dist = distribution(
+        Adjacency.from_edges(edges, n_nodes=n),
+        prior,
+        source=source,
+        epsilon=epsilon,
+        radius=radius,
+    )
+
+    q = math.exp(-epsilon / 2)
+    hops = np.abs(np.arange(n) - source)
+    inside = hops < radius
+    outside_mass = q**radius * (int(prior.sum()) - int(prior[inside].sum()))
+    normaliser = (
+        sum(q**h * int(prior[hops == h].sum()) for h in range(radius)) + outside_mass
+    )
+
+    assert dist.teleport_probability == pytest.approx(
+        outside_mass / normaliser, rel=1e-12
+    )
+    # Shells zero to R-1 are enumerated; everything else sits at the floor.
+    assert len(dist.shell_nodes) <= radius
+    assert len(dist.ball) == int(inside.sum())
