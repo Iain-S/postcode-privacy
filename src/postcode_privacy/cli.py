@@ -20,9 +20,11 @@ import csv
 import hashlib
 import json
 import os
+import re
 import secrets
 import stat
 from dataclasses import asdict
+from datetime import UTC, datetime
 from importlib.metadata import version
 from pathlib import Path
 
@@ -38,7 +40,7 @@ from postcode_privacy.evaluate.utility import (
 from postcode_privacy.fetch import fetch_onspd
 from postcode_privacy.graph.artefact import load_graph, save_graph
 from postcode_privacy.graph.build import DEFAULT_MAX_EDGE_KM, assemble
-from postcode_privacy.graph.onspd import read_onspd
+from postcode_privacy.graph.onspd import attribution, read_onspd
 from postcode_privacy.graph.postcode_graph import PostcodeGraph
 from postcode_privacy.graph.prior import population_prior
 from postcode_privacy.graph.provenance import Provenance
@@ -307,6 +309,12 @@ def _summarise_rows(indices: list[int], limit: int = 10) -> str:
     return f"row {shown}" + (f" and {extra} more" if extra > 0 else "")
 
 
+def _source_year(path: Path) -> int:
+    """The data year, taken from the ONSPD filename, falling back to now."""
+    match = re.search(r"(20\d{2})", path.name)
+    return int(match.group(1)) if match else datetime.now(UTC).year
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -499,10 +507,14 @@ def build(
             }
         ),
         "graph": asdict(provenance),
+        # Required by the ONSPD User Guide wherever the data is used.
+        "attribution": attribution(_source_year(onspd)),
     }
     manifest_path = out.with_suffix(".manifest.json")
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
     click.echo(f"wrote {out} and {manifest_path}", err=True)
+    for line in manifest["attribution"]:
+        click.echo(f"  {line}", err=True)
 
 
 @main.command()

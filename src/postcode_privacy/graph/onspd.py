@@ -67,6 +67,22 @@ REQUIRED_COLUMNS = (
 # Great Britain references are used as supplied, but checked against the same
 # projection: a file whose grid no longer means what we think it means is
 # refused rather than read. That check is what would have caught this on day one.
+# The ONSPD User Guide requires these to be acknowledged or displayed wherever
+# the data is used. They travel in the build manifest so that they reach anyone
+# holding a derived artefact, rather than depending on a human remembering.
+ATTRIBUTION = (
+    "Contains OS data (c) Crown copyright and database right {year}",
+    "Contains Royal Mail data (c) Royal Mail copyright and database right {year}",
+    "Source: Office for National Statistics licensed under the Open Government "
+    "Licence v.3.0",
+)
+
+
+def attribution(year: int) -> list[str]:
+    """The attribution statements ONSPD requires, for a given data year."""
+    return [line.format(year=year) for line in ATTRIBUTION]
+
+
 WGS84 = "EPSG:4326"
 BRITISH_NATIONAL_GRID = "EPSG:27700"
 # Generous. The projection without a datum grid is accurate to a few metres and

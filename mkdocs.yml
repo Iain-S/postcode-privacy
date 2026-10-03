@@ -28,6 +28,12 @@ nav:
   - Limitations: limitations.md
   - References: references.md
 
+copyright: >
+  Contains OS data © Crown copyright and database right 2026 ·
+  Contains Royal Mail data © Royal Mail copyright and database right 2026 ·
+  Source: Office for National Statistics licensed under the Open Government
+  Licence v.3.0
+
 markdown_extensions:
   - admonition
   - attr_list

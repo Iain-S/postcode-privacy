@@ -66,6 +66,10 @@ rather than being a silent fallback.
 A build manifest is written beside the artefact, recording the source file and its
 SHA-256, every exclusion count, and where each postcode's weight came from.
 
+`build` prints the attribution statements ONSPD requires and writes them into the
+manifest beside the artefact, so they reach whoever holds the output rather than
+depending on someone remembering to copy them across.
+
 If you intend to share the resulting artefact, exclude Northern Ireland:
 
 ```bash

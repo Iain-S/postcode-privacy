@@ -183,3 +183,19 @@ def test_one_of_fetch_or_onspd_is_required(tmp_path: Path) -> None:
 
     assert result.exit_code != 0
     assert "--onspd" in result.output
+
+
+def test_the_manifest_carries_the_required_attributions(tmp_path: Path) -> None:
+    # Not decoration: the ONSPD User Guide requires these statements to be
+    # displayed whenever the data is used, so they travel with any artefact
+    # rather than depending on someone remembering to copy them.
+    out = tmp_path / "test.ppg"
+
+    run(["build", "--onspd", str(onspd(tmp_path)), "--uniform-prior",
+         "-o", str(out)])  # fmt: skip
+
+    manifest = json.loads((tmp_path / "test.manifest.json").read_text())
+    attribution = " ".join(manifest["attribution"])
+    assert "Crown copyright" in attribution
+    assert "Royal Mail" in attribution
+    assert "Open Government Licence" in attribution

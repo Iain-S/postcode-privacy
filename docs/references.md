@@ -105,11 +105,36 @@ a term of art, and it is off by default.
 > Polygons for Characterizing the Shape of a Set of Points in the Plane.* Pattern
 > Recognition, 2008.
 
+## Attribution
+
+The ONSPD User Guide requires these statements to be acknowledged or displayed wherever
+the data is used. Every figure and every number on this site is derived from it, so they
+are reproduced here, and they also travel inside the manifest `postcode-privacy build`
+writes beside each artefact.
+
+> Contains OS data © Crown copyright and database right 2026
+>
+> Contains Royal Mail data © Royal Mail copyright and database right 2026
+>
+> Source: Office for National Statistics licensed under the Open Government Licence v.3.0
+
+Relief in the population figure is OS Terrain 50, Ordnance Survey, under the Open
+Government Licence.
+
 ## Data sources
 
-- **ONS Postcode Directory (ONSPD)**, ONS Open Geography Portal. Great Britain records
-  are available under the Open Government Licence v3. Northern Ireland records are
-  licensed from Land & Property Services and **may not be redistributed**.
+- **ONS Postcode Directory (ONSPD)**, ONS Open Geography Portal, published quarterly and
+  derived from Code-Point® Open under the Gridlink programme. Great Britain records are
+  available under the Open Government Licence v3. **Northern Ireland records (postcodes
+  beginning `BT`) require a separate licence from Land & Property Services for
+  commercial use; ONS issues only an End User Licence for internal business use, and
+  they may not be redistributed.** Using them constitutes acceptance of those terms —
+  which is what `--gb-only` exists for.
+
+  The User Guide ships inside the archive and is worth reading. It documents, among
+  other things, that Northern Ireland grid references are Irish National Grid and that
+  Channel Islands and Isle of Man postcodes carry no grid reference at all. Both facts
+  matter to anyone building a graph from it; see [Limitations](limitations.md).
 - **Census 2021 Output Area population estimates**, ONS, Open Government Licence v3.
 - **OS Open Roads**, Ordnance Survey, Open Government Licence v3 — not used in v1; the
   candidate basis for a road-network graph.
