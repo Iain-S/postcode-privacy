@@ -211,6 +211,19 @@ alias. They are the same implementation.
 
 **The ty pre-commit hook id is `ty`, not `ty-check`.**
 
+**BFS frontier expansion is vectorised, and the loop it replaced was the whole cost.**
+`Adjacency.ball` gathers every frontier node's neighbours with flat index arithmetic over
+the CSR rows. The obvious version — one `neighbours(node)` slice per frontier node —
+cost a Python call for every node visited, two and a half million of them per
+twenty-five national distributions, and was 95% of the mechanism's runtime. Vectorising
+it took a national distribution from 67 ms to 23 ms, and the whole-country verification
+sweep from 32 to 11 core-hours. The profile is flat now; the remaining time is split
+between `np.unique` and the gather, so do not expect another easy win here.
+
+Filter against `seen` *before* deduplicating. On a national graph a frontier's
+neighbours are overwhelmingly already visited, so filtering first shrinks the array that
+has to be sorted by a large factor.
+
 ## Testing expectations
 
 Test-driven development throughout: write the failing test, watch it fail for the right
