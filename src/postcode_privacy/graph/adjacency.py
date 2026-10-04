@@ -39,6 +39,10 @@ class Adjacency:
     ) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.int64]]:
         """Nodes within ``radius`` hops of ``source``, with their hop distances.
 
+        **The returned nodes are grouped by shell, not sorted.** Anything that
+        binary-searches them must sort first; ``Distribution`` does, which is
+        why ``Distribution.ball`` is safe to ``searchsorted`` and this is not.
+
         Expansion is shell by shell rather than node by node, because the
         mechanism's weight depends only on which shell a node falls in. Each node
         appears once, at its shortest distance.

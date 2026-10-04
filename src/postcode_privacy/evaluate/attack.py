@@ -8,12 +8,14 @@ its numbers belong in documentation beside the assertions they support.
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 
 import numpy as np
 
 from postcode_privacy.mechanism.mechanism import HopMechanism
 from postcode_privacy.mechanism.prf import Key
 from postcode_privacy.mechanism.sample import sample
+from postcode_privacy.postcodes import normalise
 
 
 def posterior(mechanism: HopMechanism, output: str) -> dict[str, float]:
@@ -140,3 +142,72 @@ def posterior_after(
     weights = {name: math.exp(value - highest) for name, value in beliefs.items()}
     total = sum(weights.values())
     return {name: weight / total for name, weight in weights.items()}
+
+
+@dataclass(frozen=True)
+class AttackResult:
+    """What an adversary concluded, and whether the question was fair.
+
+    ``truth_considered`` is the field that makes the rest meaningful. Candidates
+    are drawn from a ball around the observed output, and on a national graph
+    the true postcode can lie entirely outside it. A wrong top guess then means
+    one of two quite different things -- the attacker was beaten, or the
+    attacker was never shown the answer -- and only the first is an attacker
+    success rate. When the truth was not considered, the rank and probability
+    are ``None`` rather than a number somebody could quote.
+    """
+
+    outputs: tuple[str, ...]
+    candidates: int
+    candidate_radius: int | None
+    top_guess: str
+    top_probability: float
+    truth_considered: bool
+    truth_rank: int | None
+    truth_probability: float | None
+
+    @property
+    def correct(self) -> bool:
+        """Whether the attacker's best guess was right."""
+        return self.truth_considered and self.truth_rank == 1
+
+
+def attack(
+    mechanism: HopMechanism,
+    outputs: list[str],
+    *,
+    truth: str,
+    independent: bool = True,
+    candidate_radius: int | None = None,
+) -> AttackResult:
+    """Run the Bayesian attack and report how well it did, honestly."""
+    belief = posterior_after(
+        mechanism,
+        outputs,
+        independent=independent,
+        candidate_radius=candidate_radius,
+    )
+    ranked = sorted(belief.items(), key=lambda item: item[1], reverse=True)
+    canonical = normalise(truth)
+    considered = canonical in belief
+
+    rank = None
+    probability = None
+    if considered:
+        rank = next(
+            position
+            for position, (name, _) in enumerate(ranked, start=1)
+            if name == canonical
+        )
+        probability = belief[canonical]
+
+    return AttackResult(
+        outputs=tuple(outputs),
+        candidates=len(belief),
+        candidate_radius=candidate_radius,
+        top_guess=ranked[0][0],
+        top_probability=ranked[0][1],
+        truth_considered=considered,
+        truth_rank=rank,
+        truth_probability=probability,
+    )

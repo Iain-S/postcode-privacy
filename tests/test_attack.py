@@ -11,6 +11,7 @@ import pytest
 
 from postcode_privacy import HopMechanism, Key, PostcodeGraph
 from postcode_privacy.evaluate.attack import (
+    attack,
     independent_releases,
     keyed_releases,
     posterior,
@@ -108,3 +109,46 @@ def test_an_attacker_ignorant_of_the_scheme_overestimates_their_own_certainty() 
     informed = max(posterior_after(mechanism, many, independent=False).values())
 
     assert naive > informed
+
+
+def test_an_attack_reports_whether_the_truth_was_even_considered() -> None:
+    # The flaw this fixes. Candidates are drawn from a ball around the observed
+    # output, and on a national graph the truth can sit entirely outside it, so
+    # a "top guess" that is wrong may mean the attacker failed or may mean the
+    # attacker was never shown the answer. Those are different results and the
+    # second is not an attacker success rate.
+    mechanism = HopMechanism(line(), epsilon=0.5)
+    outputs = independent_releases(mechanism, "A030 1AA", count=3, seed=2)
+
+    wide = attack(mechanism, outputs, truth="A030 1AA", candidate_radius=40)
+    narrow = attack(mechanism, outputs, truth="A030 1AA", candidate_radius=1)
+
+    assert wide.truth_considered is True
+    assert narrow.truth_considered is False
+
+
+def test_a_considered_attack_reports_the_rank_of_the_truth() -> None:
+    # More informative than top-1 alone: an attacker who places the truth
+    # second has learned far more than one who places it ten-thousandth.
+    mechanism = HopMechanism(line(), epsilon=0.5)
+    outputs = independent_releases(mechanism, "A030 1AA", count=5, seed=2)
+
+    result = attack(mechanism, outputs, truth="A030 1AA", candidate_radius=40)
+
+    rank, probability = result.truth_rank, result.truth_probability
+    assert rank is not None
+    assert probability is not None
+    assert 1 <= rank <= result.candidates
+    assert 0.0 < probability <= 1.0
+
+
+def test_rank_is_absent_when_the_truth_was_not_considered() -> None:
+    # Refusing to produce a number is the point: a rank among candidates that
+    # exclude the answer would be meaningless and quotable.
+    mechanism = HopMechanism(line(), epsilon=0.5)
+    outputs = independent_releases(mechanism, "A030 1AA", count=3, seed=2)
+
+    result = attack(mechanism, outputs, truth="A030 1AA", candidate_radius=1)
+
+    assert result.truth_rank is None
+    assert result.truth_probability is None

@@ -203,6 +203,12 @@ symptom is an `OverflowError` somewhere else entirely or — worse — a plausib
 number. Convert with `int(...)` before touching `powers`. This bit `area_preservation`
 on first write.
 
+**`Adjacency.ball` returns shell-ordered nodes; `Distribution.ball` is sorted.** The
+two differ and both are used. `Distribution` sorts explicitly so that `contains` can
+binary-search; the raw adjacency version does not, because the mechanism only ever wants
+it grouped by shell. Binary-searching the raw one silently returns wrong answers rather
+than failing.
+
 **Write `np.min(x)`, not `x.min()`.** The numpy stubs resolve the no-argument overload
 to `NDArray[object_]` and the type checker rejects it. This has recurred three times.
 
