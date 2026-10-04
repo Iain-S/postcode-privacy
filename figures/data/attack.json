@@ -1,0 +1,44 @@
+{
+  "epsilon": 2.0,
+  "candidate_radius": 10,
+  "sample": 20,
+  "seed": 0,
+  "scenarios": [
+    {
+      "scenario": "one release",
+      "releases": 1,
+      "independent": true,
+      "truth_considered": 20,
+      "correct": 2,
+      "median_rank": 15.0,
+      "median_truth_probability": 0.01687521091079848
+    },
+    {
+      "scenario": "twenty independent",
+      "releases": 20,
+      "independent": true,
+      "truth_considered": 20,
+      "correct": 18,
+      "median_rank": 1.0,
+      "median_truth_probability": 0.9032881334676713
+    },
+    {
+      "scenario": "twenty keyed",
+      "releases": 20,
+      "independent": false,
+      "truth_considered": 20,
+      "correct": 4,
+      "median_rank": 12.0,
+      "median_truth_probability": 0.02007130464843694
+    }
+  ],
+  "graph": {
+    "source": "ONSPD_AUG_2026_UK.csv",
+    "source_sha256": "dcd2947a52aec97d49856411755caa8e5e6d32ef24ea929025587432ebfeba77",
+    "gb_only": false,
+    "max_edge_km": 50.0,
+    "prune_alpha": null,
+    "library_version": "0.1.0.dev0",
+    "schema_version": 2
+  }
+}

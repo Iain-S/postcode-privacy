@@ -185,9 +185,27 @@ same subject therefore always receives the same output, with no stored state.
 
 This is how repeated publication is handled. It is **not** a composition theorem: there
 is no accumulation to bound, because there is only ever one output per subject. An
-adversary who knows the scheme gains nothing from the second release, and the
-[evaluation](limitations.md) measures this — twenty keyed releases leave an attacker's
-confidence at the one-release level, while twenty independent draws more than double it.
+adversary who knows the scheme gains nothing from the second release.
+
+Measured, at \(\varepsilon = 2\) over 20 postcodes, with a Bayesian adversary holding
+the population prior and a candidate set verified to contain the true postcode in every
+case:
+
+| releases seen | identifies the exact postcode | median rank of the truth | median \(P(\text{truth})\) |
+|---|---|---|---|
+| one | 2 / 20 | 15th | 0.017 |
+| twenty, independent draws | **18 / 20** | **1st** | **0.903** |
+| twenty, keyed | 4 / 20 | 12th | 0.020 |
+
+Twenty independent releases of the same subject destroy the protection outright. Twenty
+keyed releases leave the adversary where a single release did — the difference between
+2/20 and 4/20 is well inside sampling noise at this sample size, and both reflect one
+observation's worth of information. That is what keyed determinism buys, and it is the
+only reason repeated publication is safe here.
+
+Note also what the first row says about \(\varepsilon = 2\) itself: a *single* release
+already lets this adversary pinpoint the exact postcode for one subject in ten. Two is
+not a cautious choice of \(\varepsilon\).
 
 ## 5. What is not claimed
 
