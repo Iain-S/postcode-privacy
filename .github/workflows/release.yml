@@ -48,8 +48,32 @@ jobs:
           name: distributions
           path: dist/
 
-  publish:
+  testpypi:
+    # Always first. A version uploaded to PyPI can never be replaced, even
+    # after deletion, so a mistake costs a version number permanently. This
+    # publishes the same artefacts somewhere reversible before that happens.
     needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/postcode-privacy
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          # So that re-running a tag is not fatal.
+          skip-existing: true
+
+  pypi:
+    # Add a required reviewer to the `pypi` environment to pause here, check
+    # the TestPyPI upload installs cleanly, and only then approve.
+    needs: testpypi
     runs-on: ubuntu-latest
     environment:
       name: pypi
