@@ -9,15 +9,54 @@ that the true one is deniable, with a formal guarantee:
 > `e^(ε·h)`.
 
 Postcode units are joined into a graph where edges link geographic neighbours, so
-"one hop" adapts to density automatically — roughly 200 m in central Leeds and roughly
-6 km on Bodmin Moor. That is the right behaviour, because the privacy question is
-*how many other people could I be?*, not *how many metres away am I?*.
+"one hop" adapts to density automatically. Measured on the August 2026 build, six hops
+spans about **two kilometres** in inner Leeds and about **160 kilometres** in Sutherland,
+while reaching a comparable number of people in each. That is the right behaviour,
+because the privacy question is *how many other people could I be?*, not *how many
+metres away am I?*.
 
 **Documentation: <https://iain-s.github.io/postcode-privacy/>**
 
-**Status: pre-alpha.** Nothing here is usable yet. The documented command lines
-describe the intended interface; they do not run. See `docs/superpowers/specs/` for
-the design of record.
+## Status
+
+**Pre-alpha, but it works.** All six commands run, and the quickstart goes end to end
+against a real ONS Postcode Directory: a national graph of 1,725,511 postcodes builds in
+under a minute, and perturbing a million rows takes twelve seconds.
+
+```bash
+postcode-privacy build      # ONSPD in, graph artefact out
+postcode-privacy keygen     # a secret key
+postcode-privacy perturb    # CSV or Parquet in, perturbed postcodes out
+postcode-privacy report     # what an epsilon does, before you release anything
+postcode-privacy calibrate  # solve for the epsilon meeting a target
+postcode-privacy evaluate   # utility by urban/rural group
+```
+
+What *pre-alpha* means here, specifically:
+
+- **Not on PyPI.** Install from this repository (see below).
+- **No external review.** There are 308 tests, mutation checks, and golden determinism
+  tests running on two operating systems, but nobody outside this repository has
+  audited it, and a privacy guarantee is a property of an implementation as much as of a
+  theorem.
+- **The known limitations are real.** Read
+  [Limitations](https://iain-s.github.io/postcode-privacy/limitations/) before using it
+  on anything that matters.
+
+The design of record is in `docs/superpowers/specs/`; the formal statement and proofs
+are in [Methods](https://iain-s.github.io/postcode-privacy/methods/).
+
+## Install
+
+```bash
+pip install "postcode-privacy @ git+https://github.com/Iain-S/postcode-privacy"
+```
+
+Add the `frames` extra for Parquet support:
+
+```bash
+pip install "postcode-privacy[frames] @ git+https://github.com/Iain-S/postcode-privacy"
+```
 
 ## Credit
 

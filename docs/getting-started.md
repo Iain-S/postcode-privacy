@@ -1,20 +1,25 @@
 # Getting started
 
 !!! warning "Pre-alpha"
-    All five commands work and the quickstart runs end to end. The library has not
-    been reviewed by anyone but its author, and the known limitations are real — read
-    [Limitations](limitations.md) before using it on anything that matters.
+    All six commands work and the quickstart runs end to end against a real ONSPD
+    release. The library has not been reviewed by anyone but its author, and the known
+    limitations are real — read [Limitations](limitations.md) before using it on
+    anything that matters.
 
 ## Install
 
+!!! warning "Not on PyPI yet"
+    `pip install postcode-privacy` does **not** work — nothing has been published under
+    that name. Install from the repository until there is a release.
+
 ```bash
-pip install postcode-privacy
+pip install "postcode-privacy @ git+https://github.com/Iain-S/postcode-privacy"
 ```
 
-With dataframe support for CSV and Parquet input:
+CSV needs no extra. Parquet needs `frames`:
 
 ```bash
-pip install "postcode-privacy[frames]"
+pip install "postcode-privacy[frames] @ git+https://github.com/Iain-S/postcode-privacy"
 ```
 
 ## 1. Get the data
