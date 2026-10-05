@@ -12,6 +12,11 @@ todo.md
 __pycache__/
 *.py[cod]
 
+# editor and IDE state
+.idea/
+.vscode/
+*.swp
+
 # environments
 .venv/
 .python-version
