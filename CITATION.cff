@@ -1,0 +1,54 @@
+cff-version: 1.2.0
+title: postcode-privacy
+message: >-
+  If you use this software, please cite both it and the method it
+  implements. The graph-metric approach is Takagi et al.'s, not ours.
+type: software
+authors:
+  - family-names: Stenson
+    given-names: Iain
+repository-code: "https://github.com/Iain-S/postcode-privacy"
+url: "https://iain-s.github.io/postcode-privacy/"
+abstract: >-
+  Local differential privacy for UK postcodes, measuring privacy in hops
+  along a graph of postcode units rather than in metres. An implementation
+  of Geo-Graph-Indistinguishability over ONS Postcode Directory geography,
+  with a population-weighted prior, an exactly-computable capped metric and
+  keyed-deterministic perturbation.
+keywords:
+  - differential privacy
+  - geoprivacy
+  - postcodes
+  - anonymisation
+license: MIT
+references:
+  - type: article
+    title: >-
+      Geo-Graph-Indistinguishability: Location Privacy on Road Networks
+      Based on Differential Privacy
+    authors:
+      - family-names: Takagi
+        given-names: Shun
+      - family-names: Cao
+        given-names: Yang
+      - family-names: Asano
+        given-names: Yasuhito
+      - family-names: Yoshikawa
+        given-names: Masatoshi
+    year: 2020
+    identifiers:
+      - type: other
+        value: "arXiv:2010.13449"
+  - type: conference-paper
+    title: Broadening the Scope of Differential Privacy Using Metrics
+    authors:
+      - family-names: Chatzikokolakis
+        given-names: Konstantinos
+      - family-names: Andrés
+        given-names: Miguel E.
+      - family-names: Bordenabe
+        given-names: Nicolás Emilio
+      - family-names: Palamidessi
+        given-names: Catuscia
+    collection-title: Privacy Enhancing Technologies Symposium (PETS)
+    year: 2013

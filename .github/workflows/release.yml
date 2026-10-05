@@ -1,0 +1,65 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # hatch-vcs derives the version from the tag, so the full history and
+          # tags must be present or the build is versioned wrongly.
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v7
+      - run: uv build
+
+      - name: Neither artefact may contain postcode data
+        # Repeated here rather than trusted from the CI workflow: this is the
+        # last point before publication, and ONSPD's Northern Ireland records
+        # are a licensing breach to redistribute, not merely a large file.
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import pathlib, sys, tarfile, zipfile
+
+          suspect = (".csv", ".ppg", ".zip", ".parquet", ".xlsx", ".asc")
+          bad = []
+          for wheel in pathlib.Path("dist").glob("*.whl"):
+              bad += [f"{wheel.name}:{n}" for n in zipfile.ZipFile(wheel).namelist()
+                      if n.lower().endswith(suspect)]
+          for sdist in pathlib.Path("dist").glob("*.tar.gz"):
+              with tarfile.open(sdist) as archive:
+                  bad += [f"{sdist.name}:{n}" for n in archive.getnames()
+                          if n.lower().endswith(suspect)]
+          if bad:
+              print("REFUSING TO PUBLISH, data files present:", *bad, sep="\n  ")
+              sys.exit(1)
+          print("clean: no data files in any artefact")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/postcode-privacy
+    permissions:
+      # Trusted Publishing: no long-lived API token is stored anywhere.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

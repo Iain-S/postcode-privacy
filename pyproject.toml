@@ -1,10 +1,12 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "postcode-privacy"
-version = "0.1.0.dev0"
+# The git tag is the single source of truth, so a release cannot publish a
+# version that disagrees with what was tagged.
+dynamic = ["version"]
 description = "Differential privacy for UK postcodes, measured in graph hops rather than metres"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -15,9 +17,18 @@ keywords = ["differential-privacy", "postcodes", "geoprivacy", "uk", "anonymisat
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
+    "Intended Audience :: Healthcare Industry",
     "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Security",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
     "Typing :: Typed",
 ]
+# No "License ::" classifier: PEP 639's license/license-files supersede it and
+# modern build tooling rejects the two together.
 # click is the only CLI dependency and pulls nothing transitively. The
 # command is part of the documented interface, so it is not behind an extra.
 # pyproj is required, not optional: ONSPD supplies Northern Ireland grid
@@ -30,6 +41,13 @@ frames = ["pandas>=2.0", "pyarrow>=14"]
 
 [project.scripts]
 postcode-privacy = "postcode_privacy.cli:main"
+
+[project.urls]
+Homepage = "https://iain-s.github.io/postcode-privacy/"
+Documentation = "https://iain-s.github.io/postcode-privacy/"
+Repository = "https://github.com/Iain-S/postcode-privacy"
+Issues = "https://github.com/Iain-S/postcode-privacy/issues"
+Changelog = "https://github.com/Iain-S/postcode-privacy/blob/main/CHANGELOG.md"
 
 [dependency-groups]
 # Figure generation. Separate from docs because the figures are produced by
@@ -54,8 +72,27 @@ dev = [
     "pyarrow>=14",
 ]
 
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/postcode_privacy/_version.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/postcode_privacy"]
+
+# The source distribution carries what is needed to build and test, and nothing
+# else. Committed figures alone were two megabytes of a 2.1 MB sdist.
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/pyproject.toml",
+    "/README.md",
+    "/LICENSE",
+    "/CHANGELOG.md",
+    "/AGENTS.md",
+]
 
 # The library must never ship postcode data: ONSPD Northern Ireland postcodes
 # are not redistributable. CI asserts the built wheel contains no such files.

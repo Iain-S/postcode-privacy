@@ -46,6 +46,20 @@ What *pre-alpha* means here, specifically:
 The design of record is in `docs/superpowers/specs/`; the formal statement and proofs
 are in [Methods](https://iain-s.github.io/postcode-privacy/methods/).
 
+### Output stability is part of the version number
+
+A given subject always receives the same perturbed postcode — that is the promise that
+makes repeated publication safe. Anything changing node ordering, the keyed function,
+the prior, the graph or the arithmetic re-perturbs everyone, so it is versioned:
+
+- **patch** (`0.1.0` → `0.1.1`): outputs identical for every subject
+- **minor** (`0.1.x` → `0.2.0`): outputs may change, listed in
+  [CHANGELOG.md](https://github.com/Iain-S/postcode-privacy/blob/main/CHANGELOG.md)
+
+Pin `postcode-privacy == 0.1.*` to keep outputs fixed. If you have released perturbed
+data, record the version *and* the graph artefact's `source_sha256` from its manifest;
+reproducing that release later needs both.
+
 ## Install
 
 ```bash
@@ -71,7 +85,7 @@ CCS 2013).
 What this library adds is narrow: UK postcode units as the secret space, a
 population-weighted prior, an exactly-computable capped metric, keyed-deterministic
 perturbation, and integer weights. In one sentence, it is **GG-I applied to UK
-postcodes**. Full attribution is in [`docs/references.md`](docs/references.md).
+postcodes**. Full attribution is in [References](https://iain-s.github.io/postcode-privacy/references/).
 
 ## Data and licensing
 

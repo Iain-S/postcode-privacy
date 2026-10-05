@@ -16,6 +16,9 @@ __pycache__/
 .venv/
 .python-version
 
+# Written at build time by hatch-vcs.
+src/postcode_privacy/_version.py
+
 # tooling caches
 .pytest_cache/
 .ruff_cache/

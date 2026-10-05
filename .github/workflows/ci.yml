@@ -40,27 +40,38 @@ jobs:
       - run: uv sync --group dev --python ${{ matrix.python }}
       - run: uv run pytest
 
-  no-data-in-wheel:
-    # The package must ship no postcode data: ONSPD Northern Ireland postcodes are
-    # not redistributable. Fail loudly rather than discovering this on PyPI.
+  no-data-in-artefacts:
+    # The package must ship no postcode data: ONSPD Northern Ireland postcodes
+    # are not redistributable. Fail loudly rather than discovering it on PyPI.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v7
       - run: uv build
-      - name: Assert no postcode data or graph artefacts are packaged
+      - name: Assert no postcode data in the wheel OR the sdist
+        # The sdist matters as much as the wheel and includes far more by
+        # default, so both are checked.
         run: |
           set -euo pipefail
-          contents=$(python -c "
-          import pathlib, zipfile
-          w = next(pathlib.Path('dist').glob('*.whl'))
-          print('\n'.join(zipfile.ZipFile(w).namelist()))
-          ")
-          echo "$contents"
-          if echo "$contents" | grep -Ei '\.(ppg|csv|zip|parquet)$'; then
-            echo "::error::Wheel contains data files; it must ship code only."
-            exit 1
-          fi
+          python - <<'PY'
+          import pathlib, sys, tarfile, zipfile
+
+          suspect = (".csv", ".ppg", ".zip", ".parquet", ".xlsx", ".asc")
+          bad = []
+          for wheel in pathlib.Path("dist").glob("*.whl"):
+              bad += [f"{wheel.name}:{n}" for n in zipfile.ZipFile(wheel).namelist()
+                      if n.lower().endswith(suspect)]
+          for sdist in pathlib.Path("dist").glob("*.tar.gz"):
+              with tarfile.open(sdist) as archive:
+                  bad += [f"{sdist.name}:{n}" for n in archive.getnames()
+                          if n.lower().endswith(suspect)]
+          if bad:
+              print("data files present:", *bad, sep="\n  ")
+              sys.exit(1)
+          print("clean: no data files in any artefact")
+          PY
 
   benchmark:
     # Reports, never gates. The real numbers cannot be produced here: ONSPD
