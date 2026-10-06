@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: testpypi
-      url: https://test.pypi.org/p/postcode-privacy
+      url: https://test.pypi.org/p/postcode-privacy-test
     permissions:
       id-token: write
     steps:

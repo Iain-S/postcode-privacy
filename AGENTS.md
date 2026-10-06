@@ -1,11 +1,10 @@
 # Working on postcode-privacy
 
 Things that are not obvious from reading the code or the docs. Read this before changing
-anything; several of the decisions below look like bugs or oversights and are not.
+anything.
 
 > **Keep this file current.** If you change a default, a guarantee, a guard, or any of the
-> decisions recorded here, update this file in the same commit. A stale AGENTS.md is worse
-> than none, because the next agent will trust it.
+> decisions recorded here, update this file in the same commit.
 
 ## Things that look wrong but are deliberate
 
@@ -276,3 +275,4 @@ confirmation from the full papers before it is claimed.
 - `mkdocs build --strict` runs in CI, so broken internal links fail the build.
 - `site_url` and `repo_url` in `mkdocs.yml` are unconfirmed guesses and need checking
   against the real repository before the site is published.
+- Stage files explicitly with `git add <filename[s]>`. Do not use the blanket `git add -A` as you may add data or in-progress files that have not yet been listed in .gitignore.
