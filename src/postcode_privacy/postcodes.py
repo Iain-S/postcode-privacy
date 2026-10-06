@@ -15,6 +15,30 @@ class InvalidPostcodeError(ValueError):
     """Raised when a string cannot be a UK postcode."""
 
 
+def is_missing(value: object) -> bool:
+    """Whether a subject identifier is absent in any of the shapes it takes.
+
+    Checked *before* any conversion to text. ``str(None)`` is ``"None"`` and
+    ``str(float("nan"))`` is ``"nan"`` -- perfectly good non-empty identifiers
+    as far as the keyed function is concerned. Two subjects with missing ids at
+    the same postcode would then derive the same draw and receive the same
+    output: a silent privacy failure rather than a loud type error.
+    """
+    if value is None:
+        return True
+    # NaN is the only value that is not equal to itself, which catches
+    # float("nan") and numpy's float NaN without importing pandas here.
+    if isinstance(value, float) and value != value:
+        return True
+    # pandas.NA and numpy.ma.masked are singletons whose truthiness raises.
+    try:
+        if bool(value) is False and not isinstance(value, int | float):
+            return not str(value).strip()
+    except (TypeError, ValueError):
+        return True
+    return not str(value).strip()
+
+
 class MissingSubjectIdError(ValueError):
     """Raised when a record carries no stable subject identifier.
 

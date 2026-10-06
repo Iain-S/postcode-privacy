@@ -9,7 +9,10 @@ import pandas as pd
 import pytest
 
 from postcode_privacy import HopMechanism, Key, PostcodeGraph
-from postcode_privacy.postcodes import UnknownPostcodeError
+from postcode_privacy.postcodes import (
+    MissingSubjectIdError,
+    UnknownPostcodeError,
+)
 
 RING_POSTCODES = ["AA1 1AA", "BB1 1BB", "CC1 1CC", "DD1 1DD", "EE1 1EE", "FF1 1FF"]
 RING_EDGES = np.array([[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [0, 5]], dtype=np.int64)
@@ -117,4 +120,49 @@ def test_a_missing_column_is_named_in_the_error() -> None:
             postcode_col="nonexistent",
             subject_col="patient_id",
             key=Key.generate(),
+        )
+
+
+@pytest.mark.parametrize("missing", [None, float("nan"), pd.NA, "", "   "])
+def test_a_missing_subject_id_is_refused_whatever_shape_it_takes(
+    missing: object,
+) -> None:
+    # Converting to str() before checking turns None into "None" and NaN into
+    # "nan", which are perfectly good non-empty identifiers. Two people with
+    # missing ids at one postcode then share deterministic randomness and
+    # receive the same output -- a silent privacy failure, not a type error.
+    mechanism = HopMechanism(ring(), epsilon=1.0)
+    df = pd.DataFrame(
+        {
+            "patient_id": ["p1", missing],
+            "postcode": ["AA1 1AA", "AA1 1AA"],
+        }
+    )
+
+    with pytest.raises(MissingSubjectIdError):
+        mechanism.perturb_frame(
+            df,
+            postcode_col="postcode",
+            subject_col="patient_id",
+            key=Key.from_bytes(b"\x05" * 32),
+        )
+
+
+def test_two_missing_ids_do_not_quietly_share_an_output() -> None:
+    # The consequence, stated directly: before the fix these produced the same
+    # perturbed postcode, because both ids stringified to "nan".
+    mechanism = HopMechanism(ring(), epsilon=1.0)
+    df = pd.DataFrame(
+        {
+            "patient_id": [float("nan"), float("nan")],
+            "postcode": ["AA1 1AA", "AA1 1AA"],
+        }
+    )
+
+    with pytest.raises(MissingSubjectIdError):
+        mechanism.perturb_frame(
+            df,
+            postcode_col="postcode",
+            subject_col="patient_id",
+            key=Key.from_bytes(b"\x05" * 32),
         )

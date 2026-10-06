@@ -228,3 +228,18 @@ def test_an_out_col_colliding_with_an_existing_column_is_refused(
 
     assert result.exit_code != 0
     assert "age" in result.output
+
+
+def test_a_blank_subject_id_in_a_csv_is_refused(
+    artefact: Path, key_file: Path, tmp_path: Path
+) -> None:
+    # CSV's empty string and Parquet's null are the same logical thing and must
+    # behave the same way.
+    records = tmp_path / "blank.csv"
+    records.write_text("patient_id,postcode\np1,AA1 1AA\n,AA1 1AA\n")
+
+    result = run(perturb_args(records, tmp_path / "o.csv", artefact, key_file))
+
+    assert result.exit_code != 0
+    assert "subject" in result.output.lower()
+    assert "row 2" in result.output

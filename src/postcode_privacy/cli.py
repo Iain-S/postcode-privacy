@@ -55,6 +55,7 @@ from postcode_privacy.mechanism.prf import KEY_BYTES, Key
 from postcode_privacy.postcodes import (
     LargeUserPostcodeError,
     UnknownPostcodeError,
+    is_missing,
 )
 
 # Distinguishable so a pipeline can branch without parsing stderr.
@@ -253,6 +254,18 @@ def perturb(
             f"--out-col {out_col!r} already exists in {source}; writing to it "
             "would overwrite data. Choose another name."
         )
+
+    # Checked before anything is perturbed, and by row number rather than by
+    # value: two rows with missing identifiers at one postcode would otherwise
+    # derive the same draw and share an output.
+    for position, row in enumerate(rows, start=1):
+        if is_missing(row[subject_col]):
+            raise click.UsageError(
+                f"row {position} has no subject identifier in {subject_col!r}. "
+                "Without a stable identifier the same person cannot be given a "
+                "consistent output, and two such rows at one postcode would "
+                "share one."
+            )
 
     loaded = load_graph(graph)
     mechanism = HopMechanism(loaded, epsilon=epsilon, radius=radius)

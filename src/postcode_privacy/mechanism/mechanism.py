@@ -24,6 +24,7 @@ from postcode_privacy.postcodes import (
     LargeUserPostcodeError,
     MissingSubjectIdError,
     UnknownPostcodeError,
+    is_missing,
 )
 
 DEFAULT_MAX_TELEPORT = 1e-6
@@ -178,7 +179,7 @@ class HopMechanism:
 
     def perturb(self, postcode: str, *, subject_id: str, key: Key) -> str:
         """A real postcode standing in for ``postcode``, fixed for this subject."""
-        if not subject_id:
+        if is_missing(subject_id):
             raise MissingSubjectIdError(
                 "a subject_id is required: without a stable identifier the same "
                 "person cannot be given a consistent output, and repeated "
@@ -291,9 +292,18 @@ class HopMechanism:
             if column not in frame.columns:
                 raise KeyError(f"column {column!r} is not in the frame")
 
+        subjects = list(frame[subject_col])
+        for position, subject in enumerate(subjects):
+            if is_missing(subject):
+                raise MissingSubjectIdError(
+                    f"row {position + 1} has no subject_id. Without a stable "
+                    "identifier the same person cannot be given a consistent "
+                    "output, and two such rows at one postcode would share one."
+                )
+
         outputs = self.perturb_many(
             [str(value) for value in frame[postcode_col]],
-            [str(value) for value in frame[subject_col]],
+            [str(value) for value in subjects],
             key=key,
             on_error="error" if on_error == "error" else "null",
         )
