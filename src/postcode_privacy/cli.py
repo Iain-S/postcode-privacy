@@ -206,6 +206,12 @@ def _load_key(key_file: Path | None) -> Key:
     help="What to do with a row that cannot be perturbed.",
 )
 @click.option(
+    "--keep-source-postcode",
+    is_flag=True,
+    help="Keep the true postcode in the output. Off by default: the output is "
+    "a release file, and the true postcode is what it exists to protect.",
+)
+@click.option(
     "--key-file", type=click.Path(exists=True, dir_okay=False, path_type=Path)
 )
 def perturb(
@@ -218,9 +224,16 @@ def perturb(
     out_col: str,
     radius: int | None,
     on_error: str,
+    keep_source_postcode: bool,
     key_file: Path | None,
 ) -> None:
-    """Replace the postcode column of SOURCE with perturbed postcodes."""
+    """Replace the postcode column of SOURCE with perturbed postcodes.
+
+    The output is a release file, so the true postcode is dropped from it unless
+    --keep-source-postcode is given. Carrying the source column through would
+    mean the documented quickstart produces a file containing exactly the values
+    the mechanism exists to protect.
+    """
     if out.resolve() == source.resolve():
         raise click.UsageError(
             "refusing to write over the input file. Perturbation is not "
@@ -234,6 +247,12 @@ def perturb(
     for column in (postcode_col, subject_col):
         if column not in rows[0]:
             raise click.UsageError(f"column {column!r} is not in {source}")
+    if out_col in rows[0] and out_col != postcode_col:
+        # Silently overwriting an unrelated column would corrupt the release.
+        raise click.UsageError(
+            f"--out-col {out_col!r} already exists in {source}; writing to it "
+            "would overwrite data. Choose another name."
+        )
 
     loaded = load_graph(graph)
     mechanism = HopMechanism(loaded, epsilon=epsilon, radius=radius)
@@ -259,8 +278,15 @@ def perturb(
             "--on-error drop or --on-error null to continue instead."
         )
 
+    def release_row(row: dict[str, object], value: str | None) -> dict[str, object]:
+        kept = dict(row)
+        if not keep_source_postcode:
+            kept.pop(postcode_col, None)
+        kept[out_col] = value if value is not None else ""
+        return kept
+
     written: list[dict[str, object]] = [
-        {**row, out_col: value if value is not None else ""}
+        release_row(row, value)
         for row, value in zip(rows, outputs, strict=True)
         if not (value is None and on_error == "drop")
     ]
@@ -285,6 +311,7 @@ def perturb(
         "rows_failed": len(failed),
         "distinct_postcodes": len({str(row[postcode_col]) for row in rows}),
         "out_col": out_col,
+        "source_postcode_kept": keep_source_postcode,
         "graph": provenance,
     }
     manifest_path = out.with_suffix(".manifest.json")
@@ -295,7 +322,12 @@ def perturb(
         f"epsilon: {epsilon} per hop   radius: {mechanism.radius} hops\n"
         f"max teleport probability: {max(teleports):.2g}\n"
         f"rows: {len(rows)} in, {len(written)} written, {len(failed)} failed\n"
-        f"wrote {out} and {manifest_path}",
+        + (
+            "true postcode KEPT in the output\n"
+            if keep_source_postcode
+            else "true postcode dropped from the output\n"
+        )
+        + f"wrote {out} and {manifest_path}",
         err=True,
     )
     if failed:

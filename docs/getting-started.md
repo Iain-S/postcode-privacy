@@ -153,6 +153,18 @@ The `--subject-col` is required, not optional. Without a stable subject identifi
 mechanism cannot keep a person's output consistent, and repeated releases would degrade
 the guarantee.
 
+### What the output contains
+
+`patients_dp.csv` holds every column of the input **except the true postcode**, plus
+`postcode_dp`. The source column is dropped because the output is a release file, and the
+true postcode is the thing the mechanism exists to protect — carrying it through would
+make the file useless for the purpose you ran the command for.
+
+`--keep-source-postcode` retains it, for pipelines that need to join back before the
+release step. The manifest records which you chose, so a file can be audited without
+being opened. The Python API is different on purpose: `perturb_frame` keeps the source
+column, because there the caller controls what happens next.
+
 ## 4. Choose an epsilon
 
 \(\varepsilon\) is a rate per hop, and nobody has intuition for it. Rather than guessing,

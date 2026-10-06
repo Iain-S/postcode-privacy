@@ -86,3 +86,16 @@ def test_a_missing_column_is_reported_for_parquet_too(
 
     assert result.exit_code != 0
     assert "nonexistent" in result.output
+
+
+def test_parquet_output_also_drops_the_true_postcode(
+    parquet_records: Path, artefact: Path, key_file: Path, tmp_path: Path
+) -> None:
+    out = tmp_path / "out.parquet"
+
+    run(args(parquet_records, out, artefact, key_file))
+
+    frame = pd.read_parquet(out)
+    assert "postcode" not in frame.columns
+    assert "postcode_dp" in frame.columns
+    assert frame["age"].tolist() == [41, 62, 19]

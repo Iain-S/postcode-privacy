@@ -163,3 +163,68 @@ def test_the_privacy_parameters_are_printed(
 
     for expected in ["epsilon", "radius", "teleport", "ONSPD_TEST"]:
         assert expected in result.output
+
+
+def test_the_true_postcode_is_not_in_the_output_by_default(
+    records: Path, artefact: Path, key_file: Path, tmp_path: Path
+) -> None:
+    # The whole point of the release file. Copying the source column through
+    # means the documented quickstart produces a file containing exactly the
+    # values the mechanism exists to protect.
+    out = tmp_path / "out.csv"
+
+    result = run(perturb_args(records, out, artefact, key_file))
+
+    assert result.exit_code == 0, result.output
+    assert "postcode" not in read(out)[0]
+    assert all(row["postcode_dp"] for row in read(out))
+    # Unrelated columns are still carried.
+    assert [row["age"] for row in read(out)] == ["41", "62", "19"]
+
+
+def test_the_source_postcode_can_be_kept_but_only_on_purpose(
+    records: Path, artefact: Path, key_file: Path, tmp_path: Path
+) -> None:
+    out = tmp_path / "out.csv"
+
+    result = run(
+        [*perturb_args(records, out, artefact, key_file), "--keep-source-postcode"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert [row["postcode"] for row in read(out)] == ["AA1 1AA", "CC1 1CC", "AA1 1AA"]
+
+
+def test_the_manifest_records_whether_the_source_was_kept(
+    records: Path, artefact: Path, key_file: Path, tmp_path: Path
+) -> None:
+    # So a release can be audited after the fact rather than by opening it.
+    out = tmp_path / "out.csv"
+
+    run(perturb_args(records, out, artefact, key_file))
+    assert (
+        json.loads((tmp_path / "out.manifest.json").read_text())["source_postcode_kept"]
+        is False
+    )
+
+    out2 = tmp_path / "out2.csv"
+    run([*perturb_args(records, out2, artefact, key_file), "--keep-source-postcode"])
+    assert (
+        json.loads((tmp_path / "out2.manifest.json").read_text())[
+            "source_postcode_kept"
+        ]
+        is True
+    )
+
+
+def test_an_out_col_colliding_with_an_existing_column_is_refused(
+    records: Path, artefact: Path, key_file: Path, tmp_path: Path
+) -> None:
+    # Silently overwriting `age` with postcodes would corrupt the release.
+    args = [*perturb_args(records, tmp_path / "o.csv", artefact, key_file),
+            "--out-col", "age"]  # fmt: skip
+
+    result = run(args)
+
+    assert result.exit_code != 0
+    assert "age" in result.output
