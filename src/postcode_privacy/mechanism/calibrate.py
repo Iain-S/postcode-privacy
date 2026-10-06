@@ -64,7 +64,10 @@ class CalibrationResult:
     requested: float
     epsilon: float
     achieved: float
-    p95: float
+    # The statistic calibrated against is `achieved`; this is context for it,
+    # and differs by target: the p95 for displacement, the median for the
+    # self-probability maximum.
+    spread: float
     sample_size: int
     # False when the target lies outside the bracketed range, so the epsilon
     # returned is the closest achievable rather than the one asked for.
@@ -134,6 +137,7 @@ def sample_postcodes(graph: PostcodeGraph, *, size: int, seed: int) -> list[str]
 def _median_displacement(
     graph: PostcodeGraph, epsilon: float, postcodes: list[str]
 ) -> tuple[float, float]:
+    """The median displacement in the sample, and the 95th percentile."""
     mechanism = HopMechanism(graph, epsilon=epsilon)
     medians = []
     for postcode in postcodes:
@@ -147,12 +151,19 @@ def _median_displacement(
 def _max_self_probability(
     graph: PostcodeGraph, epsilon: float, postcodes: list[str]
 ) -> tuple[float, float]:
+    """The largest self-probability in the sample, and the median for context.
+
+    The maximum, because the target is named for it and is a *privacy* target:
+    meeting it at the median would leave half the sample above the number the
+    user asked for. It is a sampled maximum and not a national worst case --
+    see the warning on ``calibrate``.
+    """
     mechanism = HopMechanism(graph, epsilon=epsilon)
     values = []
     for postcode in postcodes:
         values.append(mechanism.distribution(postcode).self_probability)
         mechanism.clear_cache()
-    return float(np.median(values)), float(np.quantile(values, 0.95))
+    return float(np.max(values)), float(np.median(values))
 
 
 # Each target maps an epsilon to a measured value. All are monotonic in epsilon,
@@ -173,6 +184,10 @@ def calibrate(
     progress: Callable[[int, int], None] | None = None,
 ) -> CalibrationResult:
     """Solve for the epsilon meeting ``target`` at ``value``.
+
+    ``max-self-probability`` bounds the largest value **in the sample**, which
+    is not a national worst case: a postcode outside the sample may exceed it.
+    Raise ``sample_size`` to tighten that, and read the result's ``spread``.
 
     Bisection, which is valid because every target is monotonic in epsilon:
     raising epsilon moves people less far and hands back the true postcode more
@@ -206,14 +221,22 @@ def calibrate(
         else:
             low = middle
 
-    epsilon = high if increasing else low
+    # Return the endpoint that SATISFIES the target, not the one that misses
+    # it. The loop maintains `high` as the side where `too_high` held, so for an
+    # increasing target (self-probability rises with epsilon) `high` is the side
+    # that exceeds the requested value and `low` is the answer; for a decreasing
+    # one (displacement falls with epsilon) it is the other way round. Taking
+    # the wrong endpoint returned an epsilon just past the target, which twenty
+    # iterations of bisection usually hid because the bracket is tiny by then --
+    # but not where the measured statistic steps, as a sampled maximum does.
+    epsilon = low if increasing else high
     achieved, spread = measure(graph, epsilon, postcodes)
     return CalibrationResult(
         target=target,
         requested=value,
         epsilon=epsilon,
         achieved=achieved,
-        p95=spread,
+        spread=spread,
         sample_size=len(postcodes),
         reached=reached,
     )

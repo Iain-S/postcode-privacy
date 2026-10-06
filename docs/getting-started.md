@@ -174,6 +174,13 @@ state the utility you need and solve for it:
 postcode-privacy calibrate --graph uk.ppg --target median-displacement-km=2.0
 ```
 
+`max-self-probability` bounds the **largest** self-probability in the sample, not its
+median. That is a sampled maximum and not a national worst case: a postcode outside the
+sample may still exceed it, so raise `--sample` if that matters, and read the spread the
+result reports. If the target is below what the graph can deliver at any
+\(\varepsilon\) — a sparse area has a floor set by how few neighbours it has — the
+result says so rather than returning a number that misses it.
+
 Or inspect what a given \(\varepsilon\) does, nationally or to one postcode:
 
 ```bash

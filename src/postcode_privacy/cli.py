@@ -700,8 +700,8 @@ def calibrate_command(
     text = (
         f"target: {result.target} = {result.requested}{unreachable}\n"
         f"  epsilon: {result.epsilon:.4g} per hop\n"
-        f"  achieved: {result.achieved:.4g} (p95 across the sample "
-        f"{result.p95:.4g})\n"
+        f"  achieved: {result.achieved:.4g} (spread across the sample "
+        f"{result.spread:.4g})\n"
         f"  sample: {result.sample_size} postcodes, seed {seed}\n"
         "  this is a property of the sample, not of the country: protection\n"
         "  varies by location, so check --sample on your own population."

@@ -85,7 +85,9 @@ def test_calibration_reports_the_spread_not_just_the_median() -> None:
     result = calibrate(line(), target="median-displacement-km", value=3.0)
 
     assert result.sample_size > 0
-    assert result.p95 >= result.achieved
+    # For a displacement target the spread is the p95, which sits above the
+    # median being calibrated against.
+    assert result.spread >= result.achieved
 
 
 def test_every_shell_contributes_to_the_measured_displacement() -> None:
@@ -114,3 +116,69 @@ def test_a_reachable_target_is_marked_reached() -> None:
     result = calibrate(line(), target="max-self-probability", value=0.05)
 
     assert result.reached is True
+
+
+def heterogeneous() -> PostcodeGraph:
+    """A graph where self-probability varies a lot between postcodes.
+
+    A dense clique beside a sparse tail: nodes in the clique have many near
+    neighbours and low self-probability, the tail node has few and high. On a
+    uniform line the median and the maximum nearly coincide, which is why the
+    original bug survived its tests.
+    """
+    n = 12
+    edges = [[i, j] for i in range(8) for j in range(i + 1, 8)]
+    edges += [[7, 8], [8, 9], [9, 10], [10, 11]]
+    return PostcodeGraph.from_edges(
+        postcodes=np.array([f"A{i:03d} 1AA" for i in range(n)]),
+        edges=np.array(edges, dtype=np.int64),
+        prior=np.ones(n, dtype=np.int64),
+        eastings=np.arange(n, dtype=np.int64) * 100,
+        northings=np.zeros(n, dtype=np.int64),
+    )
+
+
+def test_the_graph_really_is_heterogeneous() -> None:
+    # Guards the fixture: if median and maximum coincide the test below cannot
+    # tell the two statistics apart, and would pass against the bug.
+    mechanism = HopMechanism(heterogeneous(), epsilon=1.0)
+    values = [
+        mechanism.distribution(str(p)).self_probability
+        for p in heterogeneous().postcodes
+    ]
+
+    assert np.max(values) > 1.5 * np.median(values)
+
+
+def test_max_self_probability_bounds_the_whole_sample_not_its_middle() -> None:
+    # The target is a privacy target. Meeting it at the median means half the
+    # sample exceeds the number the user asked for.
+    graph = heterogeneous()
+    postcodes = [str(p) for p in graph.postcodes]
+
+    # Above 1/12, the floor a twelve-node graph with a uniform prior imposes
+    # however small epsilon becomes.
+    target = 0.15
+    result = calibrate(
+        graph,
+        target="max-self-probability",
+        value=target,
+        sample_size=len(postcodes),
+    )
+
+    assert result.reached is True
+    mechanism = HopMechanism(graph, epsilon=result.epsilon)
+    achieved = [mechanism.distribution(p).self_probability for p in postcodes]
+    assert max(achieved) <= target + 1e-9
+    # And the median is well below it, which is exactly what the old behaviour
+    # would have calibrated against instead.
+    assert float(np.median(achieved)) < target
+
+
+def test_a_self_probability_target_below_the_graphs_floor_is_unreachable() -> None:
+    # A twelve-node graph with a uniform prior cannot put self-probability below
+    # 1/12 at any epsilon. Saying so beats returning the bracket endpoint.
+    result = calibrate(heterogeneous(), target="max-self-probability", value=0.01)
+
+    assert result.reached is False
+    assert result.achieved > 0.01
