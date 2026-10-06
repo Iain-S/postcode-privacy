@@ -13,7 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      # Pinned exactly rather than to a floating major: astral-sh publishes
+      # no major tag beyond v7, so `@v10` does not resolve.
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
           enable-cache: true
       # --strict turns broken internal links and bad references into failures,
