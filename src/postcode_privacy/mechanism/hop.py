@@ -34,6 +34,9 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from decimal import Decimal, localcontext
+from fractions import Fraction
+from functools import lru_cache
 
 import numpy as np
 import numpy.typing as npt
@@ -44,6 +47,16 @@ from postcode_privacy.graph.adjacency import Adjacency
 # itself requires. Python integers are unbounded, so this costs only arithmetic
 # width and removes any coupling between epsilon, the radius and the arithmetic.
 PRECISION_BITS = 64
+
+# Fractional bits in the rational bound on q. Only the ratios between
+# consecutive powers matter, and those are exact by construction whatever this
+# is; the value decides how close the implemented epsilon is to the requested
+# one, not whether the guarantee holds.
+Q_BITS = 128
+
+# The sampler accumulates the prior in int64, so the total prior mass is what
+# has to fit. Weights themselves are unbounded Python integers.
+MAX_TOTAL_PRIOR = 2**62
 
 
 class PriorError(ValueError):
@@ -120,10 +133,58 @@ class Distribution:
         return weights / weights.sum()
 
 
-def _powers(scale: int, radius: int, q_log: float) -> list[int]:
-    """``round(2**scale * q**h)`` for ``h`` in ``0..radius``, as exact integers."""
-    unit = 1 << scale
-    return [round(unit * math.exp(q_log * hop)) for hop in range(radius + 1)]
+@lru_cache(maxsize=128)
+def q_upper_bound(epsilon: float, *, bits: int = Q_BITS) -> Fraction:
+    """A dyadic rational provably at least ``exp(-epsilon / 2)``.
+
+    Erring upwards is the safe direction. ``q`` controls how fast the weights
+    decay, so a larger ``q`` is a slower decay, which is a *smaller* effective
+    epsilon: the mechanism built on this bound satisfies the epsilon that was
+    asked for, with a sliver of precision given away rather than taken.
+
+    ``Decimal.exp`` is correctly rounded to the context precision, so the
+    60-digit result sits within half an ulp of the truth and the 1e-50 nudge
+    covers that with ten orders of magnitude to spare. The multiplication by
+    ``0.5`` runs at a precision no double can overflow, so the exponent itself
+    is exact rather than rounded in an unknown direction.
+    """
+    with localcontext() as ctx:
+        ctx.prec = 1200
+        exponent = Decimal(-epsilon) * Decimal("0.5")
+        ctx.prec = 60
+        value = (+exponent).exp()
+    exact = Fraction(value) * (1 + Fraction(1, 10**50))
+    unit = 1 << bits
+    numerator = -(-exact.numerator * unit // exact.denominator)  # ceil
+    return Fraction(numerator, unit)
+
+
+def _powers(scale: int, radius: int, q: Fraction) -> list[int]:
+    """Integer weights that decay no faster than ``q``, which is what the proof needs.
+
+    The guarantee holds for every ``(x, x', y)`` if and only if the weight of a
+    node never falls by more than ``q`` per hop:
+    ``P[j + h] >= q**h * P[j]`` for every ``j`` and ``h``. Evaluating each power
+    independently -- ``round(2**scale * math.exp(-epsilon / 2 * hop))`` -- does
+    not give that. It errs in both directions, and when one hop's error lands
+    low after its predecessor's landed high, the implemented ratio exceeds the
+    advertised bound. On a two-node graph with a prior spanning the int64 range
+    the excess over ``exp(0.3)`` is 1.25e-17: numerically nothing, formally a
+    false theorem. The term that mattered was the double rather than the
+    rounding -- at epsilon 0.3 the float exponential was off by 4.7e-18
+    relative, 170 times one unit in the last place.
+
+    Taking ``q`` as an exact rational and rounding *up*, each power from the one
+    before it, makes the inequality hold by construction at every step and so,
+    by induction, at every pair. The cost is that the powers are very slightly
+    larger than the real ones -- below 1.5e-20 relative across epsilon in
+    [0.01, 5] at radius 60 -- which is the direction that gives away utility
+    rather than privacy.
+    """
+    powers = [1 << scale]
+    for _ in range(radius):
+        powers.append(-(-powers[-1] * q.numerator // q.denominator))
+    return powers
 
 
 def distribution(
@@ -145,11 +206,26 @@ def distribution(
             "never be produced, which would leave it unable to hide anyone"
         )
 
-    q_log = -epsilon / 2
+    # Summed in float first, because an int64 sum of an oversized prior wraps
+    # silently and the check would then pass on exactly the input it exists to
+    # reject. A double carries the magnitude exactly enough for a comparison
+    # with two full bits of headroom below the int64 ceiling.
+    if float(np.sum(prior, dtype=np.float64)) > MAX_TOTAL_PRIOR:
+        raise PriorError(
+            f"total prior mass exceeds the supported maximum of "
+            f"{MAX_TOTAL_PRIOR}; the sampler accumulates the prior in int64"
+        )
+    total_prior = int(prior.sum())
+
+    q = q_upper_bound(epsilon)
     # Enough bits that the smallest factor, q**radius, still carries full
-    # precision rather than collapsing towards zero.
-    scale = math.ceil(-q_log * radius * math.log2(math.e)) + PRECISION_BITS
-    powers = _powers(scale, radius, q_log)
+    # precision rather than collapsing towards zero -- plus the bits the
+    # rounding-up itself can accumulate, which is bounded by 1 / (1 - q) and
+    # grows as epsilon shrinks.
+    decay_bits = math.ceil(epsilon / 2 * radius * math.log2(math.e))
+    carry_bits = math.ceil(-math.log2(float(1 - q)))
+    scale = decay_bits + max(carry_bits, 0) + PRECISION_BITS
+    powers = _powers(scale, radius, q)
 
     # The ball is taken to radius - 1: everything at distance radius or beyond
     # shares the capped factor and is handled in aggregate.
@@ -161,7 +237,7 @@ def distribution(
         prior_sum * powers[hop] for hop, prior_sum in enumerate(shell_priors)
     )
 
-    tail_prior = int(prior.sum()) - sum(shell_priors)
+    tail_prior = total_prior - sum(shell_priors)
     return Distribution(
         source=source,
         radius=radius,

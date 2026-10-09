@@ -27,3 +27,15 @@ Pinning `postcode-privacy == 0.1.*` keeps outputs fixed.
 
 First packaged release. Pre-alpha: the implementation has not been reviewed by anyone
 outside the repository.
+
+### Output-changing
+
+- The exponential factors `q**h` are now built from an exact rational bound on `q`,
+  each power rounded up from the one before it, instead of being evaluated independently
+  with `math.exp` and rounded. The old version let the implemented likelihood ratio
+  exceed `exp(epsilon * h)` by about 1e-17 on adversarial priors, which made the stated
+  theorem false even though the practical effect was nil
+  ([#6](https://github.com/Iain-S/postcode-privacy/issues/6)).
+  The requested epsilon is now satisfied exactly. The change alters the total weight the
+  keyed draw is taken against, so **every subject's output changes**. Anyone who
+  perturbed data with `0.1.0a1` must re-perturb it rather than mixing the two.

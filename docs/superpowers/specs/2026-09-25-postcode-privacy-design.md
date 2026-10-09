@@ -259,7 +259,7 @@ need a redistributable artefact.
 
 ### Integer weights, not floats
 
-The mechanism's weights are quantised to `uint64` and the CDF search runs in integer
+The mechanism's weights are exact integers and the CDF search runs in integer
 arithmetic. Two reasons, both load-bearing:
 
 1. **Float leakage.** Mironov (2012), *On Significance of the Least Significant Bits in
@@ -272,9 +272,16 @@ arithmetic. Two reasons, both load-bearing:
    float weights that promise depends on summation order, NumPy version and platform,
    and would break silently. Integer weights make it bit-exact.
 
-Quantisation error is bounded and folded into the reported effective ε, exactly as the
-radius cap is. Node ordering within the CDF is canonical (sorted by postcode) so the
-mapping is stable across artefact rebuilds of the same ONSPD release.
+**Superseded, issue #6.** This section originally said quantisation error would be
+bounded and folded into a reported effective ε. It never was, and the shipped sampler
+evaluated each power of `q` independently in double precision, which let the implemented
+likelihood ratio exceed the advertised bound by around 1e-17 on adversarial priors. The resolution takes
+the other branch: the powers are now constructed so that `P[j+h] >= q**h * P[j]` holds
+exactly — each power rounded *up* from the one before — so the requested ε is satisfied
+as stated and there is no effective ε to report. See `docs/methods.md`.
+
+Node ordering within the CDF is canonical (sorted by postcode) so the mapping is stable
+across artefact rebuilds of the same ONSPD release.
 
 ---
 

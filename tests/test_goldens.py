@@ -16,6 +16,12 @@ the mutation check in the suite notes below confirms they have teeth.
 The continuous integration operating-system matrix exists for these tests. Node
 ordering, integer weights and the keyed PRF are all meant to be bit-identical
 across platforms, and only running the same literals on Linux and macOS proves it.
+
+These literals were last changed deliberately, for issue #6: the exponential
+factors are now rounded up from one another rather than each from scratch, which
+changes the total weight the PRF draws against and so reshuffles every output.
+That is exactly the kind of change the table in CHANGELOG.md calls
+output-changing, and it is recorded there.
 """
 
 import numpy as np
@@ -49,27 +55,27 @@ pytestmark = pytest.mark.filterwarnings(
 
 # Radius 66 covers the whole graph, so every draw lands in a shell.
 GOLDEN_SHELL_BRANCH = [
-    "A006 1AA",
-    "A012 1AA",
-    "A007 1AA",
     "A009 1AA",
-    "A004 1AA",
-    "A004 1AA",
-    "A016 1AA",
-    "A011 1AA",
+    "A017 1AA",
+    "A008 1AA",
+    "A017 1AA",
+    "A009 1AA",
+    "A005 1AA",
+    "A012 1AA",
+    "A014 1AA",
 ]
 
 # Radius 3 leaves a third of the mass outside the ball, so the tail branch --
 # the rejection-sampled draw from the prior -- is genuinely exercised here.
 GOLDEN_TAIL_BRANCH = [
+    "A016 1AA",
     "A012 1AA",
-    "A011 1AA",
     "A005 1AA",
+    "A004 1AA",
     "A010 1AA",
-    "A009 1AA",
-    "A009 1AA",
-    "A013 1AA",
+    "A010 1AA",
     "A012 1AA",
+    "A007 1AA",
 ]
 
 

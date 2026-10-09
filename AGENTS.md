@@ -111,6 +111,38 @@ chosen to avoid. Split in two — pick a shell, then pick a node within it propo
 the prior alone — neither stage is large, and the only rounding anywhere is in the powers
 of `q`. Do not flatten this back into one cumulative array.
 
+**The powers of `q` come from a rational recursion, never from `math.exp`.** What
+shipped originally was `round(2**scale * math.exp(-epsilon/2 * h))`, evaluated
+independently per hop, and it made the stated theorem false. The proof needs
+`P[j+h] >= q**h * P[j]` for every `j` and `h`; that version errs in both directions, so
+a hop whose error lands low after one that landed high pushes the implemented likelihood
+ratio past `exp(epsilon * h)`. On a two-node graph with an int64-spanning prior the
+excess over `exp(0.3)` was 1.25e-17 -- numerically nothing, formally a false theorem.
+
+The dominant term was the double, not the integer rounding: at `epsilon=0.3` the float
+`math.exp` was off by 4.7e-18 relative, 170 times one unit in the last place of the
+scaled integer. So the fix has two halves and both are load-bearing. `q_upper_bound`
+produces an exact dyadic rational provably at least `exp(-epsilon/2)`, via `Decimal.exp`
+at 60 digits nudged upwards -- the `Decimal("0.5")` multiply runs at 1200 digits so the
+exponent itself is exact rather than rounded in an unknown direction. Then `_powers`
+iterates `P[j+1] = ceil(q_hat * P[j])`, which satisfies the inequality at every step and
+therefore, by induction, at every pair, and errs one-sidedly towards less utility rather
+than less privacy.
+
+Do not "simplify" this back to a closed-form power and do not reintroduce `math.exp`
+into the weights. `tests/test_dp_guarantee_exact.py` checks both the structural
+inequality and the end-to-end triples in exact rational arithmetic;
+`tests/test_dp_guarantee.py` cannot, because it converts to float and allows 1e-9 slack.
+Note that the end-to-end enumeration alone does *not* catch a floor-instead-of-ceil
+mutation -- on any particular graph the ratio has slack -- which is why the sharp
+`P[j+h] >= q**h * P[j]` test exists alongside it.
+
+**The total prior mass is capped at 2**62, and the check is made in float.** Weights are
+unbounded Python integers, but the sampler accumulates the prior in int64. An int64 sum
+of an oversized prior wraps silently, so checking the sum after taking it would pass on
+exactly the input the check exists to reject. The UK's population is about 2**26, so
+this cap binds on nothing real.
+
 **Weights are integers, not floats.** Two independent reasons: floating-point DP
 implementations leak the true input through low bits of the IEEE representation (Mironov,
 CCS 2012), and the promise that a subject's output never changes would otherwise depend on

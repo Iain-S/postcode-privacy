@@ -84,7 +84,7 @@ defeats naive per-call randomisation.
 
 ## Integer weights
 
-Weights are quantised to `uint64` and the cumulative distribution is searched in integer
+Weights are exact integers and the cumulative distribution is searched in integer
 arithmetic, for two reasons.
 
 **Floating-point leakage.** Mironov (CCS 2012) showed that naive floating-point
@@ -96,3 +96,12 @@ weights make it immune by construction rather than defended by patching.
 on summation order, NumPy version and platform, and would break silently. Integer
 weights make it bit-exact — and continuous integration runs the golden tests on both
 Linux and macOS to prove it.
+
+The one place a real number has to become an integer is the exponential factor
+\(q^{h}\). Computing each power independently in double precision let the implemented
+likelihood ratio exceed the advertised bound by around \(10^{-17}\) — negligible in
+practice, but enough to make the theorem false as written. The powers are now built from
+an exact rational bound on \(q\), each rounded *up* from the one before it, which makes
+the inequality the proof needs hold by construction and puts the error one-sided, on the
+side that costs utility rather than privacy. The detail is in
+[Methods](methods.md#rounding-and-why-it-does-not-weaken-the-bound).
