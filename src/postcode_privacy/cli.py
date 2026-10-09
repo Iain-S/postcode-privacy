@@ -43,7 +43,7 @@ from postcode_privacy.graph.build import DEFAULT_MAX_EDGE_KM, assemble
 from postcode_privacy.graph.onspd import attribution, read_onspd
 from postcode_privacy.graph.postcode_graph import PostcodeGraph
 from postcode_privacy.graph.prior import population_prior
-from postcode_privacy.graph.provenance import Provenance
+from postcode_privacy.graph.provenance import PopulationSource, Provenance
 from postcode_privacy.mechanism.calibrate import (
     UnknownTargetError,
     calibrate,
@@ -317,7 +317,10 @@ def perturb(
         "epsilon": epsilon,
         "radius": mechanism.radius,
         "max_teleport_probability": max(teleports),
-        "prior": "population",
+        # Read from the graph, not assumed. A uniform-prior artefact used to be
+        # reported as population weighted, which is the one field a reader would
+        # check to decide whether an output is plausible.
+        "prior": loaded.provenance.prior_kind if loaded.provenance else "unknown",
         "on_error": on_error,
         "rows_in": len(rows),
         "rows_written": len(written),
@@ -325,6 +328,10 @@ def perturb(
         "distinct_postcodes": len({str(row[postcode_col]) for row in rows}),
         "out_col": out_col,
         "source_postcode_kept": keep_source_postcode,
+        # The artefact's own hash. The graph provenance below says how it was
+        # built; this says which file was actually used, which is what makes the
+        # release reproducible without rebuilding anything.
+        "graph_sha256": _sha256(graph),
         "graph": provenance,
     }
     manifest_path = out.with_suffix(".manifest.json")
@@ -519,6 +526,16 @@ def build(
         err=True,
     )
 
+    # Hashed, not just named: two census releases under one filename produce
+    # different priors and therefore a different output for every subject.
+    population_sources = tuple(
+        PopulationSource(name=path.name, role=role, sha256=_sha256(path))
+        for role, paths in (
+            ("area", oa_populations),
+            ("postcode", postcode_populations),
+        )
+        for path in paths
+    )
     provenance = Provenance(
         source=onspd.name,
         source_sha256=_sha256(onspd),
@@ -526,6 +543,9 @@ def build(
         max_edge_km=cutoff,
         prune_alpha=prune_alpha,
         library_version=version("postcode-privacy"),
+        prior_kind="uniform" if uniform_prior else "population",
+        prior_total=int(np.sum(prior)),
+        population_sources=population_sources,
     )
     save_graph(graph, out, provenance=provenance)
 
@@ -552,6 +572,11 @@ def build(
             }
         ),
         "graph": asdict(provenance),
+        # The hash of the artefact itself, which is what a release should cite:
+        # it identifies the graph directly rather than by the recipe that made
+        # it, and rebuilding from source inputs is not guaranteed to reproduce
+        # it byte for byte.
+        "artefact_sha256": _sha256(out),
         # Required by the ONSPD User Guide wherever the data is used.
         "attribution": attribution(_source_year(onspd)),
     }

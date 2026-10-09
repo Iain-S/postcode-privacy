@@ -28,6 +28,16 @@ Pinning `postcode-privacy == 0.1.*` keeps outputs fixed.
 First packaged release. Pre-alpha: the implementation has not been reviewed by anyone
 outside the repository.
 
+### Fixed
+
+- Graph artefacts now record the prior kind and total, the name, role and SHA-256 of
+  every population input, and the numpy/scipy/pyproj versions, so two graphs built from
+  one ONSPD with different priors can no longer carry identical provenance. The perturb
+  manifest records the artefact's own SHA-256 and reports the prior the graph was
+  actually built with instead of a hardcoded `"population"`
+  ([#4](https://github.com/Iain-S/postcode-privacy/issues/4)). Artefact schema version
+  3: rebuild any graph built with an earlier release.
+
 ### Output-changing
 
 - The exponential factors `q**h` are now built from an exact rational bound on `q`,

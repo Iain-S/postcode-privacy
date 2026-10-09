@@ -81,5 +81,5 @@ def load_graph(path: str | Path) -> PostcodeGraph:
             excluded=stored["excluded"].astype(f"<U{POSTCODE_WIDTH}"),
             eastings=stored["eastings"].astype(np.int64),
             northings=stored["northings"].astype(np.int64),
-            provenance=Provenance(**metadata),
+            provenance=Provenance.from_metadata(metadata),
         )

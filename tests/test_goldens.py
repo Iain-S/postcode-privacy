@@ -125,6 +125,8 @@ def test_saving_and_reloading_the_graph_changes_no_output(tmp_path) -> None:
         max_edge_km=None,
         prune_alpha=None,
         library_version="test",
+        prior_kind="population",
+        prior_total=int(PRIOR.sum()),
     )
     path = tmp_path / "fixture.ppg"
     save_graph(fixture_graph(), path, provenance=provenance)

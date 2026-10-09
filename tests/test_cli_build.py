@@ -199,3 +199,73 @@ def test_the_manifest_carries_the_required_attributions(tmp_path: Path) -> None:
     assert "Crown copyright" in attribution
     assert "Royal Mail" in attribution
     assert "Open Government Licence" in attribution
+
+
+def test_the_manifest_hashes_every_population_input(tmp_path: Path) -> None:
+    """Name, role and hash, because none of the three is implied by the others.
+
+    Two census releases can share a filename, and the same file read per area
+    rather than per postcode gives a different prior. Either difference changes
+    every subject's output, so either has to be visible in the manifest.
+    """
+    out = tmp_path / "test.ppg"
+
+    run(
+        [
+            "build",
+            "--onspd",
+            str(onspd(tmp_path)),
+            "--oa-populations",
+            str(areas(tmp_path)),
+            "-o",
+            str(out),
+        ]
+    )
+    manifest = json.loads((tmp_path / "test.manifest.json").read_text())
+
+    sources = manifest["graph"]["population_sources"]
+    assert len(sources) == 1
+    assert sources[0]["name"] == "areas.csv"
+    assert sources[0]["role"] == "area"
+    assert len(sources[0]["sha256"]) == 64
+    assert manifest["graph"]["prior_kind"] == "population"
+    assert set(manifest["graph"]["build_dependencies"]) == {
+        "numpy",
+        "scipy",
+        "pyproj",
+    }
+    assert len(manifest["artefact_sha256"]) == 64
+
+
+def test_two_priors_over_one_onspd_produce_distinguishable_manifests(
+    tmp_path: Path,
+) -> None:
+    """The failure this all exists for, end to end.
+
+    The two artefacts share an ONSPD hash and every build flag, and they give
+    every subject a different output. If their manifests matched, a release made
+    from one could not be told from a release made from the other.
+    """
+    source = onspd(tmp_path)
+    populated = tmp_path / "populated.ppg"
+    uniform = tmp_path / "uniform.ppg"
+
+    run(
+        [
+            "build",
+            "--onspd",
+            str(source),
+            "--oa-populations",
+            str(areas(tmp_path)),
+            "-o",
+            str(populated),
+        ]
+    )
+    run(["build", "--onspd", str(source), "--uniform-prior", "-o", str(uniform)])
+
+    first = json.loads((tmp_path / "populated.manifest.json").read_text())["graph"]
+    second = json.loads((tmp_path / "uniform.manifest.json").read_text())["graph"]
+
+    assert first["source_sha256"] == second["source_sha256"]
+    assert first != second
+    assert (first["prior_kind"], second["prior_kind"]) == ("population", "uniform")

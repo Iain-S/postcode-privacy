@@ -57,8 +57,12 @@ the prior, the graph or the arithmetic re-perturbs everyone, so it is versioned:
   [CHANGELOG.md](https://github.com/Iain-S/postcode-privacy/blob/main/CHANGELOG.md)
 
 Pin `postcode-privacy == 0.1.*` to keep outputs fixed. If you have released perturbed
-data, record the version *and* the graph artefact's `source_sha256` from its manifest;
-reproducing that release later needs both.
+data, **keep the `.ppg` artefact** and record the library version and the manifest's
+`graph_sha256`, which identifies that artefact exactly. The ONSPD hash alone is not
+enough: two graphs built from one ONSPD with different population inputs give every
+subject a different output. Rebuilding an identical graph from source inputs is a
+separate and weaker proposition — see
+[Reproducing a release](https://iain-s.github.io/postcode-privacy/getting-started/#reproducing-a-release-and-rebuilding-a-graph).
 
 ## Install
 

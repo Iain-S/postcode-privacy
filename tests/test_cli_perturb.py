@@ -243,3 +243,41 @@ def test_a_blank_subject_id_in_a_csv_is_refused(
     assert result.exit_code != 0
     assert "subject" in result.output.lower()
     assert "row 2" in result.output
+
+
+def test_the_manifest_identifies_the_exact_artefact_used(
+    records: Path, artefact: Path, key_file: Path, tmp_path: Path
+) -> None:
+    """The .ppg's own hash, not just the recipe that built it.
+
+    Citing the ONSPD hash and the build flags describes how to attempt a
+    rebuild; it does not pin the file that actually produced the release. The
+    artefact hash does, and it is the only field that survives a rebuild
+    turning out not to be byte-identical.
+    """
+    import hashlib
+
+    out = tmp_path / "out.csv"
+
+    run(perturb_args(records, out, artefact, key_file))
+
+    manifest = json.loads((tmp_path / "out.manifest.json").read_text())
+    assert manifest["graph_sha256"] == hashlib.sha256(artefact.read_bytes()).hexdigest()
+
+
+def test_the_manifest_reports_the_prior_the_graph_was_built_with(
+    records: Path, artefact: Path, key_file: Path, tmp_path: Path
+) -> None:
+    """Read from the artefact, not hardcoded.
+
+    This field used to say "population" unconditionally. The test fixture's
+    graph carries a uniform prior, which is exactly the case the constant got
+    wrong, and it is the field a reader would check to judge whether an output
+    postcode is plausible.
+    """
+    out = tmp_path / "out.csv"
+
+    run(perturb_args(records, out, artefact, key_file))
+
+    manifest = json.loads((tmp_path / "out.manifest.json").read_text())
+    assert manifest["prior"] == "uniform"

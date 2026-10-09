@@ -41,6 +41,8 @@ def a_provenance() -> Provenance:
         max_edge_km=None,
         prune_alpha=None,
         library_version="0.1.0.dev0",
+        prior_kind="population",
+        prior_total=12,
     )
 
 

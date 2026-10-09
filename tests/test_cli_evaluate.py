@@ -33,6 +33,8 @@ def bigger_artefact(tmp_path: Path) -> Path:
             max_edge_km=None,
             prune_alpha=None,
             library_version="0.0.0",
+            prior_kind="uniform",
+            prior_total=1,
         ),
     )
     return path

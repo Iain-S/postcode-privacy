@@ -129,10 +129,32 @@ wrote patients_dp.csv and patients_dp.manifest.json
 
 ### The manifest
 
-Alongside the output, `perturb` always writes a JSON manifest recording the graph and
-its source hash, the epsilon and radius used, the highest teleport probability any
-record was exposed to, the error policy, and the row counts. Standard error gets lost;
-a file does not, and this is what makes a release auditable and reproducible afterwards.
+Alongside the output, `perturb` always writes a JSON manifest recording the graph, the
+epsilon and radius used, the highest teleport probability any record was exposed to, the
+error policy, and the row counts. Standard error gets lost; a file does not, and this is
+what makes a release auditable afterwards.
+
+### Reproducing a release, and rebuilding a graph
+
+These are two different things and they need different evidence.
+
+**Reproducing a release** — producing the same output postcodes again — needs the key,
+the input dataset, the epsilon and radius, and the *same graph artefact*. The manifest's
+`graph_sha256` identifies that artefact exactly. Keep the `.ppg` file: it is the only
+thing that makes this certain, and it is why `build` refuses to overwrite an existing
+artefact.
+
+**Rebuilding an identical graph from source inputs** is a stronger claim and the library
+does not promise it. The build manifest records everything that is known to move an
+output — the ONSPD filename and hash, the name, role and SHA-256 of every population
+file, the prior kind and total, the build flags, the library version, and the versions of
+numpy, scipy and pyproj, since the triangulation and the Irish Grid reprojection both
+live in dependencies. That is enough to *detect* a difference and to attempt a rebuild.
+It is not a guarantee that a rebuild is byte-identical, because a dependency can change
+a tie-break without changing its public behaviour.
+
+So: cite `graph_sha256` in anything that matters, and treat the build manifest as the
+recipe rather than the receipt.
 
 ### Diagnostics name rows, never postcodes
 

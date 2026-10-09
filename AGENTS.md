@@ -175,6 +175,24 @@ Consequences, all enforced:
 - `--gb-only` exists so that a shareable artefact can be built. Use it for anything
   intended to leave the machine it was built on.
 
+**Provenance has to distinguish two graphs, not just describe one.** Two artefacts
+built from one ONSPD with different population files give every subject a different
+output, and until schema 3 they carried identical provenance. `Provenance` therefore
+records the prior kind and total, the name/role/SHA-256 of every population input, and
+the versions of numpy, scipy and pyproj -- the triangulation and the Irish Grid
+reprojection both live in dependencies, so they can move an edge without anything here
+changing. Adding a build input without adding it to `Provenance` reopens the hole.
+
+**Cite `graph_sha256`, not `source_sha256`.** The artefact's own hash identifies the
+graph that produced a release; the ONSPD hash plus build flags is a recipe for
+attempting a rebuild, which the library does not promise is byte-identical. The README
+previously claimed the latter was sufficient and it was not.
+
+**The perturb manifest's `prior` field is read from the artefact.** It was a hardcoded
+`"population"`, which reported a uniform-prior graph as population weighted -- the one
+field a reader checks to judge whether an output postcode is plausible. Do not
+reintroduce a constant there.
+
 ## Known traps
 
 **ONSPD gives Northern Ireland grid references in the IRISH GRID.** Read as British
