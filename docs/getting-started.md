@@ -95,9 +95,15 @@ that. `keygen` refuses to overwrite an existing key, because replacing one orpha
 release made with the old key: those outputs can never be reproduced or explained again.
 
 !!! danger "The key is as sensitive as the raw data"
-    Anyone holding both the key and the graph can invert the perturbation exactly and
-    recover every true postcode. Store it as you would store the source dataset — not in
-    the repository, not in a shared drive, not in your shell history.
+    Anyone holding both the key and the graph can evaluate the mechanism themselves,
+    eliminating every postcode that does not map to the observed output and leaving a
+    handful of candidates at most. Treat compromise as disclosure of the source
+    postcodes. Store the key as you would store the source dataset — not in the
+    repository, not in a shared drive, not in your shell history.
+
+    Rotating the key is **not** routine hygiene here: a new key re-perturbs everyone, so
+    it is a second release of the same people at a second \(\varepsilon\). Rotate on
+    compromise. See the [threat model](threat-model.md).
 
     The CLI will not accept a key as an argument value for this reason. Only
     `--key-file` or the `POSTCODE_PRIVACY_KEY` environment variable are permitted.

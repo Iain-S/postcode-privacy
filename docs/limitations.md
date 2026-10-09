@@ -101,11 +101,21 @@ Keying on `subject_id` alone instead would correlate the two outputs through a s
 quantile, which has its own disclosure problem. Neither option is free. Version 1 takes
 the former and documents it here; a proper treatment needs a sequential-release analysis.
 
-## Key compromise is total
+## Key compromise removes the guarantee
 
-Anyone holding both the key and the graph artefact can invert the perturbation exactly
-and recover every true postcode. The key is not a convenience; it is as sensitive as the
-source dataset and must be handled that way.
+Anyone holding both the key and the graph artefact can evaluate the mechanism
+themselves, and so eliminate with certainty every postcode that does not map to the
+observed output. What is left is usually a handful of candidates rather than exactly
+one — the mapping has collisions — but that residual ambiguity is an accident of
+arithmetic, not a designed protection, and it does not survive any auxiliary knowledge
+about where the subjects live. Treat compromise as disclosure of the source postcodes.
+
+The key is not a convenience; it is as sensitive as the source dataset and must be
+handled that way. Note also that rotating it is a privacy *cost* here rather than a
+hygiene measure: a new key re-perturbs everyone, which is a second release of the same
+people. See the [threat model](threat-model.md) for the full statement, including the
+computational nature of the guarantee and the conditions under which repeated releases
+count as one observation.
 
 ## The output looks exact
 

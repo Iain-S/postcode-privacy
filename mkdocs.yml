@@ -26,6 +26,7 @@ nav:
   - Compared to traditional SDC: compared-to-traditional-sdc.md
   - How it works: how-it-works.md
   - Methods: methods.md
+  - Threat model: threat-model.md
   - Limitations: limitations.md
   - References: references.md
 

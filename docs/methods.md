@@ -253,8 +253,18 @@ reduced to the required range by rejection rather than modulo, so it is unbiased
 same subject therefore always receives the same output, with no stored state.
 
 This is how repeated publication is handled. It is **not** a composition theorem: there
-is no accumulation to bound, because there is only ever one output per subject. An
-adversary who knows the scheme gains nothing from the second release.
+is no accumulation to bound, because there is only ever one output per subject —
+*provided* the key, the subject identifier, the true postcode, the graph artefact, the
+parameters and the library's output-stability version are all unchanged. When any of
+those differs the two releases are two draws and the loss composes in the ordinary way.
+The conditions are listed in full in the
+[threat model](threat-model.md#when-repeated-releases-count-as-one-observation).
+
+Deriving the draw from a key rather than from fresh randomness also changes what kind of
+guarantee this is: the shipped mechanism satisfies *computational*
+\(\varepsilon\tilde{d}\)-privacy, under the assumption that HMAC-SHA256 is a
+pseudorandom function. The experiment is stated precisely in the
+[threat model](threat-model.md#the-guarantee-is-computational-not-information-theoretic).
 
 Measured, at \(\varepsilon = 2\) over 20 postcodes, with a Bayesian adversary holding
 the population prior and a candidate set verified to contain the true postcode in every
@@ -291,9 +301,18 @@ not a cautious choice of \(\varepsilon\).
   well as the subject, so a move produces an independent draw at a second
   \(\varepsilon\), and the relationship between the two outputs leaks that a move
   occurred.
-- **Key compromise is total.** An adversary holding the key and the graph can invert
-  every perturbation exactly. The guarantee is conditional on the key staying secret;
-  it is not information-theoretic.
+- **The guarantee is computational.** The randomness is over a uniformly drawn secret
+  key, and HMAC-SHA256 is assumed to be a pseudorandom function. The ideal mechanism's
+  bound is information-theoretic; the implementation inherits it up to the PRF
+  advantage. See the [threat model](threat-model.md).
+- **Key compromise removes the guarantee entirely.** An adversary holding the key and
+  the graph can evaluate the mechanism themselves and eliminate every postcode that does
+  not map to the observed output. The surviving candidate set is usually small but is
+  not always a single postcode; the mapping has collisions. Treat compromise as
+  disclosure of the source postcodes.
+- **Local DP protects the field, not the record.** Nothing here hides that a record
+  exists or what its other columns say. See the
+  [threat model](threat-model.md#where-this-sits-against-the-icos-guidance).
 - **The implementation is unreviewed.** It has tests, mutation checks and
   cross-platform golden outputs, but it has had no external audit, and a privacy
   guarantee is a property of an implementation as much as of a theorem.

@@ -28,6 +28,19 @@ Pinning `postcode-privacy == 0.1.*` keeps outputs fixed.
 First packaged release. Pre-alpha: the implementation has not been reviewed by anyone
 outside the repository.
 
+### Documentation
+
+- New [Threat model](https://iain-s.github.io/postcode-privacy/threat-model/) page:
+  states that the shipped guarantee is computational differential privacy under a PRF
+  assumption and gives the experiment, lists the six conditions under which repeated
+  keyed releases count as one observation and how composition behaves when any of them
+  changes, sets out subject-identifier and key-rotation requirements, and relates the
+  mechanism to the ICO's guidance on differential privacy
+  ([#1](https://github.com/Iain-S/postcode-privacy/issues/1)).
+- Corrected the claim that key compromise lets an attacker "invert every perturbation
+  exactly". The keyed map is not injective; compromise eliminates every postcode outside
+  a small preimage, which should still be treated as disclosure.
+
 ### Fixed
 
 - Graph artefacts now record the prior kind and total, the name, role and SHA-256 of

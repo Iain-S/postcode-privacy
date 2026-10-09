@@ -193,6 +193,27 @@ previously claimed the latter was sufficient and it was not.
 field a reader checks to judge whether an output postcode is plausible. Do not
 reintroduce a constant there.
 
+**The shipped guarantee is computational, not information-theoretic.** The proof is
+about a mechanism drawing fresh randomness; the library draws nothing, deriving every
+output from HMAC-SHA256 under a secret key. The randomness is over the uniform choice of
+key and HMAC is assumed to be a PRF. Headline text must not claim unconditional DP.
+`docs/threat-model.md` states the experiment; keep it consistent with any change to
+`mechanism/prf.py`.
+
+**"Repeated releases leak nothing further" is conditional on six things**, all listed in
+the threat model: key, subject identifier, true postcode, graph artefact, epsilon and
+radius, and the output-stability version. Change any one and the two releases are two
+draws composing to 2*epsilon*d. Rotating the key is therefore a privacy cost here, not
+hygiene -- the opposite of the usual advice, and worth saying out loud whenever key
+handling comes up.
+
+**Do not write that key compromise lets an attacker "invert exactly".** It does not: the
+keyed map is not injective and the preimage of an observed output is usually a handful of
+postcodes. The accurate claim is that every postcode outside that preimage is eliminated
+with certainty, so compromise should be treated as disclosure. `tests/test_key_compromise.py`
+pins both halves, because overstating the consequence is as much a documentation defect
+as understating it.
+
 ## Known traps
 
 **ONSPD gives Northern Ireland grid references in the IRISH GRID.** Read as British

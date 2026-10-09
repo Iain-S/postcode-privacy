@@ -101,8 +101,20 @@ Property Services end-user licence and may not be redistributed.**
 ## Keys are as sensitive as the raw data
 
 Perturbation is keyed and deterministic, so the same person always maps to the same
-output. Anyone holding both the key and the graph can invert it exactly. Treat the key
-with the same care as the source dataset.
+output. That makes repeated publication safe, and it also means the guarantee is
+**computational**: the randomness is over a uniformly drawn secret key, with
+HMAC-SHA256 assumed to be a pseudorandom function.
+
+Anyone holding both the key and the graph can evaluate the mechanism themselves and
+eliminate every postcode that does not map to the observed output, leaving a handful of
+candidates at most. Treat key compromise as disclosure of the source postcodes, and the
+key itself with the same care as the source dataset. Rotating it re-perturbs everyone,
+so rotation is a privacy cost rather than hygiene.
+
+The full statement — the PRF experiment, the conditions under which repeated releases
+count as one observation, subject-identifier requirements, and where this sits against
+the ICO's guidance on differential privacy — is in
+[Threat model](https://iain-s.github.io/postcode-privacy/threat-model/).
 
 ## Licence
 
